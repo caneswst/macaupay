@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 20px auto;
             padding: 20px;
         }
@@ -26,17 +26,25 @@
         .input-group {
             margin: 10px 0;
         }
+        button {
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
     <h1>抽獎金額記錄系統</h1>
-    
+
+    <div class="input-group">
+        <label>新增使用者名稱: 
+            <input type="text" id="newUser" placeholder="輸入新使用者名稱">
+            <button onclick="addUser()">新增使用者</button>
+        </label>
+    </div>
+
     <div class="input-group">
         <label>選擇用戶: 
-            <select id="user">
-                <option value="東">東</option>
-                <option value="IRIS">IRIS</option>
-            </select>
+            <select id="user"></select>
         </label>
         
         <label>選擇銀行: 
@@ -70,16 +78,46 @@
                 <th>抽獎金額</th>
                 <th>抽獎日期</th>
                 <th>使用期限</th>
+                <th>操作</th>
             </tr>
         </thead>
         <tbody id="recordsTable"></tbody>
     </table>
 
     <script>
+        // 初始化資料
+        let users = JSON.parse(localStorage.getItem('users')) || ['東', 'IRIS'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
 
-        function saveRecords() {
+        function saveData() {
+            localStorage.setItem('users', JSON.stringify(users));
             localStorage.setItem('drawRecords', JSON.stringify(records));
+        }
+
+        function updateUserSelect() {
+            const userSelect = document.getElementById('user');
+            userSelect.innerHTML = '';
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user;
+                option.text = user;
+                userSelect.appendChild(option);
+            });
+        }
+
+        function addUser() {
+            const newUser = document.getElementById('newUser').value.trim();
+            if (newUser && !users.includes(newUser)) {
+                users.push(newUser);
+                saveData();
+                updateUserSelect();
+                document.getElementById('newUser').value = '';
+                alert('已新增使用者: ' + newUser);
+            } else if (!newUser) {
+                alert('請輸入使用者名稱');
+            } else {
+                alert('此使用者名稱已存在');
+            }
         }
 
         function getWeekendDates(drawDate) {
@@ -107,6 +145,7 @@
             }
 
             const record = {
+                id: Date.now(), // 用時間戳作為唯一ID
                 user,
                 bank,
                 amount: parseFloat(amount),
@@ -115,25 +154,35 @@
             };
 
             records.push(record);
-            saveRecords();
+            saveData();
+            displayRecords();
+        }
+
+        function deleteRecord(id) {
+            records = records.filter(record => record.id !== id);
+            saveData();
             displayRecords();
         }
 
         function displayRecords() {
             const tbody = document.getElementById('recordsTable');
             tbody.innerHTML = '';
+            const selectedUser = document.getElementById('user').value;
             
-            records.forEach(record => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${record.user}</td>
-                    <td>${record.bank}</td>
-                    <td>${record.amount}</td>
-                    <td>${record.drawDate}</td>
-                    <td>${record.expiry}</td>
-                `;
-                tbody.appendChild(row);
-            });
+            records
+                .filter(record => record.user === selectedUser)
+                .forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.user}</td>
+                        <td>${record.bank}</td>
+                        <td>${record.amount}</td>
+                        <td>${record.drawDate}</td>
+                        <td>${record.expiry}</td>
+                        <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
         }
 
         function checkMondayReset() {
@@ -144,15 +193,20 @@
                 
                 if (lastReset !== todayStr) {
                     records = [];
-                    saveRecords();
+                    saveData();
                     localStorage.setItem('lastReset', todayStr);
+                    displayRecords();
                 }
             }
         }
 
         // 初始化
+        updateUserSelect();
         checkMondayReset();
         displayRecords();
+
+        // 當選擇不同用戶時更新顯示
+        document.getElementById('user').addEventListener('change', displayRecords);
 
         // 每分鐘檢查一次是否需要重置
         setInterval(checkMondayReset, 60000);
