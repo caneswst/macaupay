@@ -70,6 +70,20 @@
         <button onclick="addRecord()">新增記錄</button>
     </div>
 
+    <div class="input-group">
+        <label>刪除使用者: 
+            <select id="deleteUserSelect"></select>
+            <button onclick="deleteUser()">刪除使用者及其記錄</button>
+        </label>
+    </div>
+
+    <div class="input-group">
+        <button onclick="exportData()">匯出資料</button>
+        <label>匯入資料: 
+            <input type="file" id="importFile" accept=".json" onchange="importData()">
+        </label>
+    </div>
+
     <table>
         <thead>
             <tr>
@@ -96,12 +110,15 @@
 
         function updateUserSelect() {
             const userSelect = document.getElementById('user');
+            const deleteUserSelect = document.getElementById('deleteUserSelect');
             userSelect.innerHTML = '';
+            deleteUserSelect.innerHTML = '';
             users.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user;
                 option.text = user;
-                userSelect.appendChild(option);
+                userSelect.appendChild(option.cloneNode(true));
+                deleteUserSelect.appendChild(option);
             });
         }
 
@@ -117,6 +134,18 @@
                 alert('請輸入使用者名稱');
             } else {
                 alert('此使用者名稱已存在');
+            }
+        }
+
+        function deleteUser() {
+            const userToDelete = document.getElementById('deleteUserSelect').value;
+            if (confirm(`確定要刪除使用者 ${userToDelete} 及其所有記錄嗎？`)) {
+                users = users.filter(user => user !== userToDelete);
+                records = records.filter(record => record.user !== userToDelete);
+                saveData();
+                updateUserSelect();
+                displayRecords();
+                alert(`已刪除使用者 ${userToDelete} 及其記錄`);
             }
         }
 
@@ -145,7 +174,7 @@
             }
 
             const record = {
-                id: Date.now(), // 唯一ID
+                id: Date.now(),
                 user,
                 bank,
                 amount: parseFloat(amount),
@@ -159,7 +188,6 @@
         }
 
         function deleteRecord(id) {
-            // 只刪除指定ID的單筆記錄
             records = records.filter(record => record.id !== id);
             saveData();
             displayRecords();
@@ -170,7 +198,6 @@
             tbody.innerHTML = '';
             const selectedUser = document.getElementById('user').value;
             
-            // 只顯示當前選擇用戶的記錄
             records
                 .filter(record => record.user === selectedUser)
                 .forEach(record => {
@@ -189,12 +216,12 @@
 
         function checkMondayReset() {
             const today = new Date();
-            if (today.getDay() === 1) { // 星期一
+            if (today.getDay() === 1) {
                 const lastReset = localStorage.getItem('lastReset');
                 const todayStr = today.toDateString();
                 
                 if (lastReset !== todayStr) {
-                    records = []; // 每週一清空所有記錄
+                    records = [];
                     saveData();
                     localStorage.setItem('lastReset', todayStr);
                     displayRecords();
@@ -202,15 +229,48 @@
             }
         }
 
+        function exportData() {
+            const data = {
+                users: users,
+                records: records
+            };
+            const json = JSON.stringify(data);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'draw_records.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const file = document.getElementById('importFile').files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    users = data.users || [];
+                    records = data.records || [];
+                    saveData();
+                    updateUserSelect();
+                    displayRecords();
+                    alert('資料匯入成功');
+                } catch (err) {
+                    alert('匯入失敗：無效的資料格式');
+                }
+            };
+            reader.readAsText(file);
+        }
+
         // 初始化
         updateUserSelect();
         checkMondayReset();
         displayRecords();
 
-        // 當選擇不同用戶時更新顯示
         document.getElementById('user').addEventListener('change', displayRecords);
-
-        // 每分鐘檢查一次是否需要重置
         setInterval(checkMondayReset, 60000);
     </script>
 </body>
