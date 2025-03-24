@@ -145,7 +145,7 @@
             }
 
             const record = {
-                id: Date.now(), // 用時間戳作為唯一ID
+                id: Date.now(), // 唯一ID
                 user,
                 bank,
                 amount: parseFloat(amount),
@@ -159,6 +159,7 @@
         }
 
         function deleteRecord(id) {
+            // 只刪除指定ID的單筆記錄
             records = records.filter(record => record.id !== id);
             saveData();
             displayRecords();
@@ -169,6 +170,7 @@
             tbody.innerHTML = '';
             const selectedUser = document.getElementById('user').value;
             
+            // 只顯示當前選擇用戶的記錄
             records
                 .filter(record => record.user === selectedUser)
                 .forEach(record => {
@@ -192,7 +194,7 @@
                 const todayStr = today.toDateString();
                 
                 if (lastReset !== todayStr) {
-                    records = [];
+                    records = []; // 每週一清空所有記錄
                     saveData();
                     localStorage.setItem('lastReset', todayStr);
                     displayRecords();
