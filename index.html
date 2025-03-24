@@ -30,6 +30,22 @@
             padding: 5px 10px;
             margin: 0 5px;
         }
+        /* 定義金額範圍的背景顏色 */
+        .amount-very-low {
+            background-color: #d4edda; /* 綠色：0-10 */
+        }
+        .amount-low {
+            background-color: #fff3cd; /* 黃色：11-20 */
+        }
+        .amount-medium {
+            background-color: #b3e5fc; /* 湖藍色：21-50 */
+        }
+        .amount-high {
+            background-color: #f3e5f5; /* 蘭花紫：51-100 */
+        }
+        .amount-very-high {
+            background-color: #f8d7da; /* 淺紅色：101-200以下 */
+        }
     </style>
 </head>
 <body>
@@ -55,7 +71,8 @@
                 <option value="MPAY">MPAY</option>
                 <option value="支付寶">支付寶</option>
                 <option value="UEPAY">UEPAY</option>
-                <option value="雲閃付">雲閃付</option>
+                <option value="廣發">雲閃付</option>
+                <option value="國際">雲閃付</option>
             </select>
         </label>
         
@@ -193,6 +210,14 @@
             displayRecords();
         }
 
+        function getAmountClass(amount) {
+            if (amount <= 10) return 'amount-very-low';    // 綠色
+            if (amount <= 20) return 'amount-low';         // 黃色
+            if (amount <= 50) return 'amount-medium';      // 湖藍色
+            if (amount <= 100) return 'amount-high';       // 蘭花紫
+            return 'amount-very-high';                     // 淺紅色 (101-200以下)
+        }
+
         function displayRecords() {
             const tbody = document.getElementById('recordsTable');
             tbody.innerHTML = '';
@@ -202,10 +227,11 @@
                 .filter(record => record.user === selectedUser)
                 .forEach(record => {
                     const row = document.createElement('tr');
+                    const amountClass = getAmountClass(record.amount);
                     row.innerHTML = `
                         <td>${record.user}</td>
                         <td>${record.bank}</td>
-                        <td>${record.amount}</td>
+                        <td class="${amountClass}">${record.amount}</td>
                         <td>${record.drawDate}</td>
                         <td>${record.expiry}</td>
                         <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
