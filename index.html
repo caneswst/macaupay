@@ -22,6 +22,7 @@
         }
         th {
             background-color: #f2f2f2;
+            cursor: pointer; /* 讓表頭看起來可點擊 */
         }
         .input-group {
             margin: 10px 0;
@@ -71,8 +72,8 @@
                 <option value="MPAY">MPAY</option>
                 <option value="支付寶">支付寶</option>
                 <option value="UEPAY">UEPAY</option>
-                <option value="廣發">廣發</option>
                 <option value="國際">國際</option>
+                <option value="廣發">廣發</option>
             </select>
         </label>
         
@@ -104,9 +105,9 @@
     <table>
         <thead>
             <tr>
-                <th>用戶</th>
-                <th>銀行</th>
-                <th>抽獎金額</th>
+                <th onclick="sortTable('user')">用戶</th>
+                <th onclick="sortTable('bank')">銀行</th>
+                <th onclick="sortTable('amount')">抽獎金額</th>
                 <th>抽獎日期</th>
                 <th>使用期限</th>
                 <th>操作</th>
@@ -119,6 +120,7 @@
         // 初始化資料
         let users = JSON.parse(localStorage.getItem('users')) || ['test'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
+        let sortDirection = { user: 1, bank: 1, amount: 1 }; // 1: 升序, -1: 降序
 
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
@@ -211,11 +213,47 @@
         }
 
         function getAmountClass(amount) {
-            if (amount <= 10) return 'amount-very-low';    // 綠色
-            if (amount <= 20) return 'amount-low';         // 黃色
-            if (amount <= 50) return 'amount-medium';      // 湖藍色
-            if (amount <= 100) return 'amount-high';       // 蘭花紫
-            return 'amount-very-high';                     // 淺紅色 (101-200以下)
+            if (amount <= 10) return 'amount-very-low';
+            if (amount <= 20) return 'amount-low';
+            if (amount <= 50) return 'amount-medium';
+            if (amount <= 100) return 'amount-high';
+            return 'amount-very-high';
+        }
+
+        function sortTable(key) {
+            const selectedUser = document.getElementById('user').value;
+            let filteredRecords = records.filter(record => record.user === selectedUser);
+
+            filteredRecords.sort((a, b) => {
+                let valueA = a[key];
+                let valueB = b[key];
+                
+                if (key === 'amount') {
+                    return (valueA - valueB) * sortDirection[key];
+                } else {
+                    return valueA.localeCompare(valueB) * sortDirection[key];
+                }
+            });
+
+            // 切換排序方向
+            sortDirection[key] = -sortDirection[key];
+
+            // 更新顯示
+            const tbody = document.getElementById('recordsTable');
+            tbody.innerHTML = '';
+            filteredRecords.forEach(record => {
+                const row = document.createElement('tr');
+                const amountClass = getAmountClass(record.amount);
+                row.innerHTML = `
+                    <td>${record.user}</td>
+                    <td>${record.bank}</td>
+                    <td class="${amountClass}">${record.amount}</td>
+                    <td>${record.drawDate}</td>
+                    <td>${record.expiry}</td>
+                    <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
+                `;
+                tbody.appendChild(row);
+            });
         }
 
         function displayRecords() {
