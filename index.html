@@ -22,7 +22,7 @@
         }
         th {
             background-color: #f2f2f2;
-            cursor: pointer; /* 讓表頭看起來可點擊 */
+            cursor: pointer;
         }
         .input-group {
             margin: 10px 0;
@@ -31,22 +31,13 @@
             padding: 5px 10px;
             margin: 0 5px;
         }
-        /* 定義金額範圍的背景顏色 */
-        .amount-very-low {
-            background-color: #d4edda; /* 綠色：0-10 */
-        }
-        .amount-low {
-            background-color: #fff3cd; /* 黃色：11-20 */
-        }
-        .amount-medium {
-            background-color: #b3e5fc; /* 湖藍色：21-50 */
-        }
-        .amount-high {
-            background-color: #f3e5f5; /* 蘭花紫：51-100 */
-        }
-        .amount-very-high {
-            background-color: #f8d7da; /* 淺紅色：101-200以下 */
-        }
+        .amount-very-low { background-color: #d4edda; } /* 綠色：0-10 */
+        .amount-low { background-color: #fff3cd; } /* 黃色：11-20 */
+        .amount-medium { background-color: #b3e5fc; } /* 湖藍色：21-50 */
+        .amount-high { background-color: #f3e5f5; } /* 蘭花紫：51-100 */
+        .amount-very-high { background-color: #f8d7da; } /* 淺紅色：101-200以下 */
+        .used-yes { background-color: #d4edda; cursor: pointer; } /* 已使用：綠色 */
+        .used-no { background-color: #ffffff; cursor: pointer; } /* 未使用：白色 */
     </style>
 </head>
 <body>
@@ -110,6 +101,7 @@
                 <th onclick="sortTable('amount')">抽獎金額</th>
                 <th>抽獎日期</th>
                 <th>使用期限</th>
+                <th>已使用</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -120,7 +112,7 @@
         // 初始化資料
         let users = JSON.parse(localStorage.getItem('users')) || ['test'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
-        let sortDirection = { user: 1, bank: 1, amount: 1 }; // 1: 升序, -1: 降序
+        let sortDirection = { user: 1, bank: 1, amount: 1 };
 
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
@@ -198,7 +190,8 @@
                 bank,
                 amount: parseFloat(amount),
                 drawDate,
-                expiry: getWeekendDates(drawDate)
+                expiry: getWeekendDates(drawDate),
+                used: false // 預設未使用
             };
 
             records.push(record);
@@ -210,6 +203,15 @@
             records = records.filter(record => record.id !== id);
             saveData();
             displayRecords();
+        }
+
+        function toggleUsed(id) {
+            const record = records.find(record => record.id === id);
+            if (record) {
+                record.used = !record.used;
+                saveData();
+                displayRecords();
+            }
         }
 
         function getAmountClass(amount) {
@@ -235,21 +237,21 @@
                 }
             });
 
-            // 切換排序方向
             sortDirection[key] = -sortDirection[key];
 
-            // 更新顯示
             const tbody = document.getElementById('recordsTable');
             tbody.innerHTML = '';
             filteredRecords.forEach(record => {
                 const row = document.createElement('tr');
                 const amountClass = getAmountClass(record.amount);
+                const usedClass = record.used ? 'used-yes' : 'used-no';
                 row.innerHTML = `
                     <td>${record.user}</td>
                     <td>${record.bank}</td>
                     <td class="${amountClass}">${record.amount}</td>
                     <td>${record.drawDate}</td>
                     <td>${record.expiry}</td>
+                    <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
                     <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
                 `;
                 tbody.appendChild(row);
@@ -266,12 +268,14 @@
                 .forEach(record => {
                     const row = document.createElement('tr');
                     const amountClass = getAmountClass(record.amount);
+                    const usedClass = record.used ? 'used-yes' : 'used-no';
                     row.innerHTML = `
                         <td>${record.user}</td>
                         <td>${record.bank}</td>
                         <td class="${amountClass}">${record.amount}</td>
                         <td>${record.drawDate}</td>
                         <td>${record.expiry}</td>
+                        <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
                         <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
                     `;
                     tbody.appendChild(row);
