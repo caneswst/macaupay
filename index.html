@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>抽獎金額記錄系統</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>抽獎金額記錄系統</h1>
+    
+    <div class="input-group">
+        <label>選擇用戶: 
+            <select id="user">
+                <option value="東">東</option>
+                <option value="IRIS">IRIS</option>
+            </select>
+        </label>
+        
+        <label>選擇銀行: 
+            <select id="bank">
+                <option value="中銀">中銀</option>
+                <option value="大豐">大豐</option>
+                <option value="工商">工商</option>
+                <option value="MPAY">MPAY</option>
+                <option value="支付寶">支付寶</option>
+                <option value="UEPAY">UEPAY</option>
+                <option value="雲閃付">雲閃付</option>
+            </select>
+        </label>
+        
+        <label>抽獎金額: 
+            <input type="number" id="amount" min="0">
+        </label>
+        
+        <label>抽獎日期: 
+            <input type="date" id="drawDate">
+        </label>
+        
+        <button onclick="addRecord()">新增記錄</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>用戶</th>
+                <th>銀行</th>
+                <th>抽獎金額</th>
+                <th>抽獎日期</th>
+                <th>使用期限</th>
+            </tr>
+        </thead>
+        <tbody id="recordsTable"></tbody>
+    </table>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
+
+        function saveRecords() {
+            localStorage.setItem('drawRecords', JSON.stringify(records));
+        }
+
+        function getWeekendDates(drawDate) {
+            const date = new Date(drawDate);
+            const day = date.getDay();
+            const diffToSaturday = day === 0 ? -1 : 6 - day;
+            const saturday = new Date(date);
+            saturday.setDate(date.getDate() + diffToSaturday);
+            
+            const sunday = new Date(saturday);
+            sunday.setDate(saturday.getDate() + 1);
+            
+            return `${saturday.toLocaleDateString('zh-HK')} - ${sunday.toLocaleDateString('zh-HK')}`;
+        }
+
+        function addRecord() {
+            const user = document.getElementById('user').value;
+            const bank = document.getElementById('bank').value;
+            const amount = document.getElementById('amount').value;
+            const drawDate = document.getElementById('drawDate').value;
+
+            if (!amount || !drawDate) {
+                alert('請填寫金額和抽獎日期');
+                return;
+            }
+
+            const record = {
+                user,
+                bank,
+                amount: parseFloat(amount),
+                drawDate,
+                expiry: getWeekendDates(drawDate)
+            };
+
+            records.push(record);
+            saveRecords();
+            displayRecords();
+        }
+
+        function displayRecords() {
+            const tbody = document.getElementById('recordsTable');
+            tbody.innerHTML = '';
+            
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${record.user}</td>
+                    <td>${record.bank}</td>
+                    <td>${record.amount}</td>
+                    <td>${record.drawDate}</td>
+                    <td>${record.expiry}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function checkMondayReset() {
+            const today = new Date();
+            if (today.getDay() === 1) { // 星期一
+                const lastReset = localStorage.getItem('lastReset');
+                const todayStr = today.toDateString();
+                
+                if (lastReset !== todayStr) {
+                    records = [];
+                    saveRecords();
+                    localStorage.setItem('lastReset', todayStr);
+                }
+            }
+        }
+
+        // 初始化
+        checkMondayReset();
+        displayRecords();
+
+        // 每分鐘檢查一次是否需要重置
+        setInterval(checkMondayReset, 60000);
+    </script>
+</body>
+</html>
