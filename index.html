@@ -3,42 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <title>抽獎金額記錄系統</title>
-    <style>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 20px;
+        font-size: 20px; /* 整體字體放大 */
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px; /* 增加內邊距，讓格子更大 */
+        text-align: center;
+        font-size: 22px; /* 表格文字放大 */
+    }
+    th {
+        background-color: #f2f2f2;
+        cursor: pointer;
+    }
+    .input-group {
+        margin: 10px 0;
+        font-size: 20px; /* 輸入區文字放大 */
+    }
+    .input-group select, .input-group input, .input-group button {
+        font-size: 20px; /* 下拉選單、輸入框和按鈕文字放大 */
+        padding: 5px; /* 增加內邊距 */
+    }
+    button {
+        padding: 8px 12px; /* 按鈕更大 */
+        margin: 0 5px;
+    }
+    .amount-very-low { background-color: #d4edda; }
+    .amount-low { background-color: #fff3cd; }
+    .amount-medium { background-color: #b3e5fc; }
+    .amount-high { background-color: #f3e5f5; }
+    .amount-very-high { background-color: #f8d7da; }
+    .used-yes { background-color: #d4edda; cursor: pointer; }
+    .used-no { background-color: #ffffff; cursor: pointer; }
+
+    /* 手機適配：螢幕小於 600px 時進一步放大 */
+    @media (max-width: 600px) {
         body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            font-size: 24px;
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
-        th {
-            background-color: #f2f2f2;
-            cursor: pointer;
+            font-size: 26px;
+            padding: 12px;
         }
         .input-group {
-            margin: 10px 0;
+            font-size: 24px;
+        }
+        .input-group select, .input-group input, .input-group button {
+            font-size: 24px;
+            padding: 8px;
         }
         button {
-            padding: 5px 10px;
-            margin: 0 5px;
+            padding: 10px 15px;
         }
-        .amount-very-low { background-color: #d4edda; } /* 綠色：10 */
-        .amount-low { background-color: #fff3cd; } /* 黃色：20 */
-        .amount-medium { background-color: #b3e5fc; } /* 湖藍色：50 */
-        .amount-high { background-color: #f3e5f5; } /* 蘭花紫：100 */
-        .amount-very-high { background-color: #f8d7da; } /* 淺紅色：200 */
-        .used-yes { background-color: #d4edda; cursor: pointer; } /* 已使用：綠色 */
-        .used-no { background-color: #ffffff; cursor: pointer; } /* 未使用：白色 */
-    </style>
+    }
+</style>
 </head>
 <body>
     <h1>抽獎金額記錄系統</h1>
