@@ -31,11 +31,11 @@
             padding: 5px 10px;
             margin: 0 5px;
         }
-        .amount-very-low { background-color: #d4edda; } /* 綠色：0-10 */
-        .amount-low { background-color: #fff3cd; } /* 黃色：11-20 */
-        .amount-medium { background-color: #b3e5fc; } /* 湖藍色：21-50 */
-        .amount-high { background-color: #f3e5f5; } /* 蘭花紫：51-100 */
-        .amount-very-high { background-color: #f8d7da; } /* 淺紅色：101-200以下 */
+        .amount-very-low { background-color: #d4edda; } /* 綠色：10 */
+        .amount-low { background-color: #fff3cd; } /* 黃色：20 */
+        .amount-medium { background-color: #b3e5fc; } /* 湖藍色：50 */
+        .amount-high { background-color: #f3e5f5; } /* 蘭花紫：100 */
+        .amount-very-high { background-color: #f8d7da; } /* 淺紅色：200 */
         .used-yes { background-color: #d4edda; cursor: pointer; } /* 已使用：綠色 */
         .used-no { background-color: #ffffff; cursor: pointer; } /* 未使用：白色 */
     </style>
@@ -69,7 +69,13 @@
         </label>
         
         <label>抽獎金額: 
-            <input type="number" id="amount" min="0">
+            <select id="amount">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+            </select>
         </label>
         
         <label>抽獎日期: 
@@ -191,7 +197,7 @@
                 amount: parseFloat(amount),
                 drawDate,
                 expiry: getWeekendDates(drawDate),
-                used: false // 預設未使用
+                used: false
             };
 
             records.push(record);
@@ -215,11 +221,12 @@
         }
 
         function getAmountClass(amount) {
-            if (amount <= 10) return 'amount-very-low';
-            if (amount <= 20) return 'amount-low';
-            if (amount <= 50) return 'amount-medium';
-            if (amount <= 100) return 'amount-high';
-            return 'amount-very-high';
+            if (amount == 10) return 'amount-very-low';
+            if (amount == 20) return 'amount-low';
+            if (amount == 50) return 'amount-medium';
+            if (amount == 100) return 'amount-high';
+            if (amount == 200) return 'amount-very-high';
+            return ''; // 若金額不在選項中（理論上不會發生）
         }
 
         function sortTable(key) {
@@ -320,12 +327,25 @@
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    users = data.users || [];
-                    records = data.records || [];
+                    const importedUsers = data.users || [];
+                    const importedRecords = data.records || [];
+
+                    importedUsers.forEach(newUser => {
+                        if (!users.includes(newUser)) {
+                            users.push(newUser);
+                        }
+                    });
+
+                    importedRecords.forEach(newRecord => {
+                        if (!records.some(record => record.id === newRecord.id)) {
+                            records.push(newRecord);
+                        }
+                    });
+
                     saveData();
                     updateUserSelect();
                     displayRecords();
-                    alert('資料匯入成功');
+                    alert('資料匯入成功，已合併新資料');
                 } catch (err) {
                     alert('匯入失敗：無效的資料格式');
                 }
