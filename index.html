@@ -9,7 +9,7 @@
         max-width: 900px;
         margin: 20px auto;
         padding: 20px;
-        font-size: 20px; /* 整體字體放大 */
+        font-size: 20px;
     }
     table {
         width: 100%;
@@ -18,9 +18,9 @@
     }
     th, td {
         border: 1px solid #ddd;
-        padding: 10px; /* 增加內邊距，讓格子更大 */
+        padding: 10px;
         text-align: center;
-        font-size: 22px; /* 表格文字放大 */
+        font-size: 22px;
     }
     th {
         background-color: #f2f2f2;
@@ -28,14 +28,14 @@
     }
     .input-group {
         margin: 10px 0;
-        font-size: 20px; /* 輸入區文字放大 */
+        font-size: 20px;
     }
     .input-group select, .input-group input, .input-group button {
-        font-size: 20px; /* 下拉選單、輸入框和按鈕文字放大 */
-        padding: 5px; /* 增加內邊距 */
+        font-size: 20px;
+        padding: 5px;
     }
     button {
-        padding: 8px 12px; /* 按鈕更大 */
+        padding: 8px 12px;
         margin: 0 5px;
     }
     .amount-very-low { background-color: #d4edda; }
@@ -45,26 +45,26 @@
     .amount-very-high { background-color: #f8d7da; }
     .used-yes { background-color: #d4edda; cursor: pointer; }
     .used-no { background-color: #ffffff; cursor: pointer; }
-
-    /* 手機適配：螢幕小於 600px 時進一步放大 */
+    .summary {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        background-color: #f9f9f9;
+        font-size: 20px;
+    }
+    .summary h3 {
+        margin-top: 0;
+    }
     @media (max-width: 600px) {
-        body {
-            font-size: 24px;
-        }
-        th, td {
-            font-size: 26px;
-            padding: 12px;
-        }
-        .input-group {
-            font-size: 24px;
-        }
+        body { font-size: 24px; }
+        th, td { font-size: 26px; padding: 12px; }
+        .input-group { font-size: 24px; }
         .input-group select, .input-group input, .input-group button {
             font-size: 24px;
             padding: 8px;
         }
-        button {
-            padding: 10px 15px;
-        }
+        button { padding: 10px 15px; }
+        .summary { font-size: 24px; }
     }
 </style>
 </head>
@@ -142,8 +142,11 @@
         <tbody id="recordsTable"></tbody>
     </table>
 
+    <div id="bankSummary"></div>
+    <div id="weeklySummary"></div>
+    <div id="cumulativeWeeklySummary"></div>
+
     <script>
-        // 初始化資料
         let users = JSON.parse(localStorage.getItem('users')) || ['test'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
         let sortDirection = { user: 1, bank: 1, amount: 1 };
@@ -200,10 +203,8 @@
             const diffToSaturday = day === 0 ? -1 : 6 - day;
             const saturday = new Date(date);
             saturday.setDate(date.getDate() + diffToSaturday);
-            
             const sunday = new Date(saturday);
             sunday.setDate(saturday.getDate() + 1);
-            
             return `${saturday.toLocaleDateString('zh-HK')} - ${sunday.toLocaleDateString('zh-HK')}`;
         }
 
@@ -254,7 +255,7 @@
             if (amount == 50) return 'amount-medium';
             if (amount == 100) return 'amount-high';
             if (amount == 200) return 'amount-very-high';
-            return ''; // 若金額不在選項中（理論上不會發生）
+            return '';
         }
 
         function sortTable(key) {
@@ -264,7 +265,6 @@
             filteredRecords.sort((a, b) => {
                 let valueA = a[key];
                 let valueB = b[key];
-                
                 if (key === 'amount') {
                     return (valueA - valueB) * sortDirection[key];
                 } else {
@@ -315,6 +315,72 @@
                     `;
                     tbody.appendChild(row);
                 });
+
+            displaySummaries();
+        }
+
+        function getWeekNumber(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+            const week1 = new Date(d.getFullYear(), 0, 4);
+            return Math.round(((d - week1) / 86400000 + 1) / 7);
+        }
+
+        function displaySummaries() {
+            const selectedUser = document.getElementById('user').value;
+            const filteredRecords = records.filter(record => record.user === selectedUser);
+
+            // 銀行小結
+            const bankSummary = {};
+            filteredRecords.forEach(record => {
+                if (!bankSummary[record.bank]) {
+                    bankSummary[record.bank] = { total: 0, count: 0 };
+                }
+                bankSummary[record.bank].total += record.amount;
+                bankSummary[record.bank].count += 1;
+            });
+
+            let bankSummaryHtml = '<div class="summary"><h3>銀行小結</h3><ul>';
+            for (const bank in bankSummary) {
+                bankSummaryHtml += `<li>${bank}: 總金額 ${bankSummary[bank].total}, 記錄數 ${bankSummary[bank].count}</li>`;
+            }
+            bankSummaryHtml += '</ul></div>';
+            document.getElementById('bankSummary').innerHTML = bankSummaryHtml;
+
+            // 每周金額總結
+            const weeklySummary = {};
+            filteredRecords.forEach(record => {
+                const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
+                if (!weeklySummary[week]) {
+                    weeklySummary[week] = { total: 0, count: 0 };
+                }
+                weeklySummary[week].total += record.amount;
+                weeklySummary[week].count += 1;
+            });
+
+            let weeklySummaryHtml = '<div class="summary"><h3>每周金額總結</h3><ul>';
+            for (const week in weeklySummary) {
+                weeklySummaryHtml += `<li>${week}: 總金額 ${weeklySummary[week].total}, 記錄數 ${weeklySummary[week].count}</li>`;
+            }
+            weeklySummaryHtml += '</ul></div>';
+            document.getElementById('weeklySummary').innerHTML = weeklySummaryHtml;
+
+            // 累計每周總結的總結
+            let cumulativeTotal = 0;
+            let cumulativeCount = 0;
+            for (const week in weeklySummary) {
+                cumulativeTotal += weeklySummary[week].total;
+                cumulativeCount += weeklySummary[week].count;
+            }
+            const cumulativeSummaryHtml = `
+                <div class="summary">
+                    <h3>累計總結</h3>
+                    <p>總金額: ${cumulativeTotal}</p>
+                    <p>總記錄數: ${cumulativeCount}</p>
+                </div>
+            `;
+            document.getElementById('cumulativeWeeklySummary').innerHTML = cumulativeSummaryHtml;
         }
 
         function checkMondayReset() {
@@ -381,7 +447,6 @@
             reader.readAsText(file);
         }
 
-        // 初始化
         updateUserSelect();
         checkMondayReset();
         displayRecords();
