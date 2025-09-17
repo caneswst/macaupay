@@ -149,11 +149,13 @@
     <script>
         let users = JSON.parse(localStorage.getItem('users')) || ['test'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
+        let historicalWeeklySummary = JSON.parse(localStorage.getItem('historicalWeeklySummary')) || {};
         let sortDirection = { user: 1, bank: 1, amount: 1 };
 
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
             localStorage.setItem('drawRecords', JSON.stringify(records));
+            localStorage.setItem('historicalWeeklySummary', JSON.stringify(historicalWeeklySummary));
         }
 
         function updateUserSelect() {
@@ -190,6 +192,13 @@
             if (confirm(`確定要刪除使用者 ${userToDelete} 及其所有記錄嗎？`)) {
                 users = users.filter(user => user !== userToDelete);
                 records = records.filter(record => record.user !== userToDelete);
+                // Remove user's weekly summary data
+                for (const week in historicalWeeklySummary) {
+                    delete historicalWeeklySummary[week][userToDelete];
+                    if (Object.keys(historicalWeeklySummary[week]).length === 0) {
+                        delete historicalWeeklySummary[week];
+                    }
+                }
                 saveData();
                 updateUserSelect();
                 displayRecords();
@@ -212,10 +221,11 @@
             const user = document.getElementById('user').value;
             const bank = document.getElementById('bank').value;
             const amount = document.getElementById('amount').value;
-            const drawDate = document.getElementById('drawDate').value;
+            const drawDateInput = document.getElementById('drawDate').value;
+            const drawDate = drawDateInput || new Date().toISOString().split('T')[0];
 
-            if (!amount || !drawDate) {
-                alert('請填寫金額和抽獎日期');
+            if (!amount) {
+                alert('請填寫金額');
                 return;
             }
 
@@ -230,22 +240,65 @@
             };
 
             records.push(record);
+            updateHistoricalWeeklySummary(record);
             saveData();
             displayRecords();
         }
 
         function deleteRecord(id) {
-            records = records.filter(record => record.id !== id);
-            saveData();
-            displayRecords();
+            const record = records.find(record => record.id === id);
+            if (record) {
+                // Update historical summary before deleting
+                const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
+                if (historicalWeeklySummary[week] && historicalWeeklySummary[week][record.user]) {
+                    historicalWeeklySummary[week][record.user].total -= record.amount;
+                    historicalWeeklySummary[week][record.user].count -= 1;
+                    historicalWeeklySummary[week][record.user].used -= record.used ? record.amount : 0;
+                    historicalWeeklySummary[week][record.user].unused -= record.used ? 0 : record.amount;
+                    if (historicalWeeklySummary[week][record.user].count === 0) {
+                        delete historicalWeeklySummary[week][record.user];
+                        if (Object.keys(historicalWeeklySummary[week]).length === 0) {
+                            delete historicalWeeklySummary[week];
+                        }
+                    }
+                }
+                records = records.filter(r => r.id !== id);
+                saveData();
+                displayRecords();
+            }
         }
 
         function toggleUsed(id) {
             const record = records.find(record => record.id === id);
             if (record) {
                 record.used = !record.used;
+                updateHistoricalWeeklySummary(record, true);
                 saveData();
                 displayRecords();
+            }
+        }
+
+        function updateHistoricalWeeklySummary(record, isToggle = false) {
+            const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
+            if (!historicalWeeklySummary[week]) {
+                historicalWeeklySummary[week] = {};
+            }
+            if (!historicalWeeklySummary[week][record.user]) {
+                historicalWeeklySummary[week][record.user] = { total: 0, count: 0, used: 0, unused: 0 };
+            }
+            
+            if (isToggle) {
+                if (record.used) {
+                    historicalWeeklySummary[week][record.user].used += record.amount;
+                    historicalWeeklySummary[week][record.user].unused -= record.amount;
+                } else {
+                    historicalWeeklySummary[week][record.user].used -= record.amount;
+                    historicalWeeklySummary[week][record.user].unused += record.amount;
+                }
+            } else {
+                historicalWeeklySummary[week][record.user].total += record.amount;
+                historicalWeeklySummary[week][record.user].count += 1;
+                historicalWeeklySummary[week][record.user].unused += record.amount;
             }
         }
 
@@ -335,15 +388,20 @@
             const bankSummary = {};
             filteredRecords.forEach(record => {
                 if (!bankSummary[record.bank]) {
-                    bankSummary[record.bank] = { total: 0, count: 0 };
+                    bankSummary[record.bank] = { total: 0, count: 0, used: 0, unused: 0 };
                 }
                 bankSummary[record.bank].total += record.amount;
                 bankSummary[record.bank].count += 1;
+                if (record.used) {
+                    bankSummary[record.bank].used += record.amount;
+                } else {
+                    bankSummary[record.bank].unused += record.amount;
+                }
             });
 
             let bankSummaryHtml = '<div class="summary"><h3>銀行小結</h3><ul>';
             for (const bank in bankSummary) {
-                bankSummaryHtml += `<li>${bank}: 總金額 ${bankSummary[bank].total}, 記錄數 ${bankSummary[bank].count}</li>`;
+                bankSummaryHtml += `<li>${bank}: 總金額 ${bankSummary[bank].total}, 記錄數 ${bankSummary[bank].count}, 已使用 ${bankSummary[bank].used}, 未使用 ${bankSummary[bank].unused}</li>`;
             }
             bankSummaryHtml += '</ul></div>';
             document.getElementById('bankSummary').innerHTML = bankSummaryHtml;
@@ -353,34 +411,58 @@
             filteredRecords.forEach(record => {
                 const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
                 if (!weeklySummary[week]) {
-                    weeklySummary[week] = { total: 0, count: 0 };
+                    weeklySummary[week] = { total: 0, count: 0, used: 0, unused: 0 };
                 }
                 weeklySummary[week].total += record.amount;
                 weeklySummary[week].count += 1;
+                if (record.used) {
+                    weeklySummary[week].used += record.amount;
+                } else {
+                    weeklySummary[week].unused += record.amount;
+                }
             });
 
             let weeklySummaryHtml = '<div class="summary"><h3>每周金額總結</h3><ul>';
             for (const week in weeklySummary) {
-                weeklySummaryHtml += `<li>${week}: 總金額 ${weeklySummary[week].total}, 記錄數 ${weeklySummary[week].count}</li>`;
+                weeklySummaryHtml += `<li>${week}: 總金額 ${weeklySummary[week].total}, 記錄數 ${weeklySummary[week].count}, 已使用 ${weeklySummary[week].used}, 未使用 ${weeklySummary[week].unused}</li>`;
             }
             weeklySummaryHtml += '</ul></div>';
             document.getElementById('weeklySummary').innerHTML = weeklySummaryHtml;
 
-            // 累計每周總結的總結
+            // 歷史每周總結
+            let historicalSummaryHtml = '<div class="summary"><h3>歷史每周總結</h3><ul>';
+            for (const week in historicalWeeklySummary) {
+                if (historicalWeeklySummary[week][selectedUser]) {
+                    const summary = historicalWeeklySummary[week][selectedUser];
+                    historicalSummaryHtml += `<li>${week}: 總金額 ${summary.total}, 記錄數 ${summary.count}, 已使用 ${summary.used}, 未使用 ${summary.unused}</li>`;
+                }
+            }
+            historicalSummaryHtml += '</ul></div>';
+            document.getElementById('cumulativeWeeklySummary').innerHTML = historicalSummaryHtml;
+
+            // 累計總結
             let cumulativeTotal = 0;
             let cumulativeCount = 0;
-            for (const week in weeklySummary) {
-                cumulativeTotal += weeklySummary[week].total;
-                cumulativeCount += weeklySummary[week].count;
+            let cumulativeUsed = 0;
+            let cumulativeUnused = 0;
+            for (const week in historicalWeeklySummary) {
+                if (historicalWeeklySummary[week][selectedUser]) {
+                    cumulativeTotal += historicalWeeklySummary[week][selectedUser].total;
+                    cumulativeCount += historicalWeeklySummary[week][selectedUser].count;
+                    cumulativeUsed += historicalWeeklySummary[week][selectedUser].used;
+                    cumulativeUnused += historicalWeeklySummary[week][selectedUser].unused;
+                }
             }
             const cumulativeSummaryHtml = `
                 <div class="summary">
                     <h3>累計總結</h3>
                     <p>總金額: ${cumulativeTotal}</p>
                     <p>總記錄數: ${cumulativeCount}</p>
+                    <p>已使用金額: ${cumulativeUsed}</p>
+                    <p>未使用金額: ${cumulativeUnused}</p>
                 </div>
             `;
-            document.getElementById('cumulativeWeeklySummary').innerHTML = cumulativeSummaryHtml;
+            document.getElementById('cumulativeWeeklySummary').innerHTML += cumulativeSummaryHtml;
         }
 
         function checkMondayReset() {
@@ -401,7 +483,8 @@
         function exportData() {
             const data = {
                 users: users,
-                records: records
+                records: records,
+                historicalWeeklySummary: historicalWeeklySummary
             };
             const json = JSON.stringify(data);
             const blob = new Blob([json], { type: 'application/json' });
@@ -423,6 +506,7 @@
                     const data = JSON.parse(e.target.result);
                     const importedUsers = data.users || [];
                     const importedRecords = data.records || [];
+                    const importedHistoricalSummary = data.historicalWeeklySummary || {};
 
                     importedUsers.forEach(newUser => {
                         if (!users.includes(newUser)) {
@@ -433,8 +517,26 @@
                     importedRecords.forEach(newRecord => {
                         if (!records.some(record => record.id === newRecord.id)) {
                             records.push(newRecord);
+                            updateHistoricalWeeklySummary(newRecord);
                         }
                     });
+
+                    // Merge historical weekly summary
+                    for (const week in importedHistoricalSummary) {
+                        if (!historicalWeeklySummary[week]) {
+                            historicalWeeklySummary[week] = {};
+                        }
+                        for (const user in importedHistoricalSummary[week]) {
+                            if (!historicalWeeklySummary[week][user]) {
+                                historicalWeeklySummary[week][user] = importedHistoricalSummary[week][user];
+                            } else {
+                                historicalWeeklySummary[week][user].total += importedHistoricalSummary[week][user].total;
+                                historicalWeeklySummary[week][user].count += importedHistoricalSummary[week][user].count;
+                                historicalWeeklySummary[week][user].used += importedHistoricalSummary[week][user].used;
+                                historicalWeeklySummary[week][user].unused += importedHistoricalSummary[week][user].unused;
+                            }
+                        }
+                    }
 
                     saveData();
                     updateUserSelect();
