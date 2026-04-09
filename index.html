@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>抽獎金額記錄系統</title>
+    <title>抽獎金額記錄系統 (新版：五六日抽獎，一至四使用)</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -10,6 +10,14 @@
         margin: 20px auto;
         padding: 20px;
         font-size: 20px;
+    }
+    .warning-note {
+        background-color: #fff0b3;
+        border-left: 5px solid #ffc107;
+        padding: 8px 12px;
+        margin-bottom: 15px;
+        font-size: 18px;
+        border-radius: 4px;
     }
     table {
         width: 100%;
@@ -69,7 +77,11 @@
 </style>
 </head>
 <body>
-    <h1>抽獎金額記錄系統</h1>
+    <h1>抽獎金額記錄系統 (新制：五六日抽獎，一至四使用)</h1>
+    <div class="warning-note">
+        📌 新規定：僅限 <strong>星期五、六、日</strong> 可進行抽獎登記，獎金使用期限為 <strong>下週一 至 下週四</strong>。<br>
+        🔄 系統每週五自動清空上週期記錄 (已使用/未使用均歸檔至歷史統計)，請於使用期限內標記「已使用」。
+    </div>
 
     <div class="input-group">
         <label>新增使用者名稱: 
@@ -106,7 +118,7 @@
             </select>
         </label>
         
-        <label>抽獎日期: 
+        <label>抽獎日期 (五六日): 
             <input type="date" id="drawDate">
         </label>
         
@@ -134,7 +146,7 @@
                 <th onclick="sortTable('bank')">銀行</th>
                 <th onclick="sortTable('amount')">抽獎金額</th>
                 <th>抽獎日期</th>
-                <th>使用期限</th>
+                <th>使用期限 (週一~週四)</th>
                 <th>已使用</th>
                 <th>操作</th>
             </tr>
@@ -147,17 +159,78 @@
     <div id="cumulativeWeeklySummary"></div>
 
     <script>
+        // ---------- 全域變數 ----------
         let users = JSON.parse(localStorage.getItem('users')) || ['test'];
         let records = JSON.parse(localStorage.getItem('drawRecords')) || [];
         let historicalWeeklySummary = JSON.parse(localStorage.getItem('historicalWeeklySummary')) || {};
         let sortDirection = { user: 1, bank: 1, amount: 1 };
 
+        // ---------- 輔助函式：取得下週一 ~ 下週四日期區間 (新規定使用期限) ----------
+        function getMondayToThursdayRange(drawDateStr) {
+            const drawDate = new Date(drawDateStr);
+            if (isNaN(drawDate.getTime())) return "無效日期";
+            
+            // 計算下週一 (抽獎日之後的第一個星期一)
+            const dayOfWeek = drawDate.getDay(); // 0=週日, 5=週五, 6=週六
+            let daysUntilMonday = 0;
+            if (dayOfWeek === 5) {        // 星期五 -> 下週一 +3天
+                daysUntilMonday = 3;
+            } else if (dayOfWeek === 6) {  // 星期六 -> 下週一 +2天
+                daysUntilMonday = 2;
+            } else if (dayOfWeek === 0) {  // 星期日 -> 下週一 +1天
+                daysUntilMonday = 1;
+            } else {
+                // 理論上抽獎日期只會是5,6,0，但若其他日期被錯誤輸入，仍強制找下週一
+                daysUntilMonday = (8 - dayOfWeek) % 7;
+                if (daysUntilMonday === 0) daysUntilMonday = 7;
+            }
+            
+            const nextMonday = new Date(drawDate);
+            nextMonday.setDate(drawDate.getDate() + daysUntilMonday);
+            const nextThursday = new Date(nextMonday);
+            nextThursday.setDate(nextMonday.getDate() + 3);
+            
+            const formatYMD = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            };
+            return `${formatYMD(nextMonday)} ~ ${formatYMD(nextThursday)}`;
+        }
+
+        // ---------- 資料遷移：將舊紀錄的expiry（週末格式）更新為新制使用期限 ----------
+        function migrateExpiryToNewRule() {
+            let updated = false;
+            records.forEach(record => {
+                const newExpiry = getMondayToThursdayRange(record.drawDate);
+                if (record.expiry !== newExpiry) {
+                    record.expiry = newExpiry;
+                    updated = true;
+                }
+            });
+            if (updated) {
+                saveData();
+                console.log("已將舊記錄的使用期限遷移至新規定 (週一~週四)");
+            }
+        }
+
+        // 檢查日期是否為星期五、六、日 (5,6,0)
+        function isValidDrawDate(dateStr) {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return false;
+            const day = date.getDay();
+            return (day === 5 || day === 6 || day === 0); // 5:週五, 6:週六, 0:週日
+        }
+
+        // 儲存資料至 localStorage
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
             localStorage.setItem('drawRecords', JSON.stringify(records));
             localStorage.setItem('historicalWeeklySummary', JSON.stringify(historicalWeeklySummary));
         }
 
+        // 更新下拉選單
         function updateUserSelect() {
             const userSelect = document.getElementById('user');
             const deleteUserSelect = document.getElementById('deleteUserSelect');
@@ -172,6 +245,7 @@
             });
         }
 
+        // 新增使用者
         function addUser() {
             const newUser = document.getElementById('newUser').value.trim();
             if (newUser && !users.includes(newUser)) {
@@ -187,12 +261,13 @@
             }
         }
 
+        // 刪除使用者及相關記錄
         function deleteUser() {
             const userToDelete = document.getElementById('deleteUserSelect').value;
             if (confirm(`確定要刪除使用者 ${userToDelete} 及其所有記錄嗎？`)) {
                 users = users.filter(user => user !== userToDelete);
                 records = records.filter(record => record.user !== userToDelete);
-                // Remove user's weekly summary data
+                // 刪除歷史週總結中的使用者資料
                 for (const week in historicalWeeklySummary) {
                     delete historicalWeeklySummary[week][userToDelete];
                     if (Object.keys(historicalWeeklySummary[week]).length === 0) {
@@ -206,56 +281,95 @@
             }
         }
 
-        function getWeekendDates(drawDate) {
-            const date = new Date(drawDate);
-            const day = date.getDay();
-            const diffToSaturday = day === 0 ? -1 : 6 - day;
-            const saturday = new Date(date);
-            saturday.setDate(date.getDate() + diffToSaturday);
-            const sunday = new Date(saturday);
-            sunday.setDate(saturday.getDate() + 1);
-            return `${saturday.toLocaleDateString('zh-HK')} - ${sunday.toLocaleDateString('zh-HK')}`;
+        // 取得該日期所在的週數 (ISO週數，週一為基準)
+        function getWeekNumber(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+            const week1 = new Date(d.getFullYear(), 0, 4);
+            return Math.round(((d - week1) / 86400000 + 1) / 7);
         }
 
+        // 更新歷史每週總結 (新增/刪除/切換使用狀態時同步)
+        function updateHistoricalWeeklySummary(record, isToggle = false) {
+            const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
+            if (!historicalWeeklySummary[week]) {
+                historicalWeeklySummary[week] = {};
+            }
+            if (!historicalWeeklySummary[week][record.user]) {
+                historicalWeeklySummary[week][record.user] = { total: 0, count: 0, used: 0, unused: 0 };
+            }
+            const userWeek = historicalWeeklySummary[week][record.user];
+            if (isToggle) {
+                // 切換已使用狀態
+                if (record.used) {
+                    userWeek.used += record.amount;
+                    userWeek.unused -= record.amount;
+                } else {
+                    userWeek.used -= record.amount;
+                    userWeek.unused += record.amount;
+                }
+            } else {
+                // 新增記錄
+                userWeek.total += record.amount;
+                userWeek.count += 1;
+                userWeek.unused += record.amount;
+            }
+        }
+
+        // 新增抽獎記錄 (僅限週五、六、日)
         function addRecord() {
             const user = document.getElementById('user').value;
             const bank = document.getElementById('bank').value;
-            const amount = document.getElementById('amount').value;
-            const drawDateInput = document.getElementById('drawDate').value;
-            const drawDate = drawDateInput || new Date().toISOString().split('T')[0];
-
-            if (!amount) {
-                alert('請填寫金額');
+            const amount = parseFloat(document.getElementById('amount').value);
+            let drawDateInput = document.getElementById('drawDate').value;
+            
+            if (!drawDateInput) {
+                // 預設今天，但今天若非五六日則警告
+                drawDateInput = new Date().toISOString().split('T')[0];
+            }
+            
+            if (!amount || isNaN(amount)) {
+                alert('請選擇有效金額');
                 return;
             }
-
+            
+            // 新規定: 抽獎日期必須是星期五、六、日
+            if (!isValidDrawDate(drawDateInput)) {
+                alert("❌ 新規定：僅能在星期五、六、日進行抽獎登記！\n請選擇週五、週六或週日的日期。");
+                return;
+            }
+            
+            const expiry = getMondayToThursdayRange(drawDateInput);
             const record = {
                 id: Date.now(),
                 user,
                 bank,
-                amount: parseFloat(amount),
-                drawDate,
-                expiry: getWeekendDates(drawDate),
+                amount: amount,
+                drawDate: drawDateInput,
+                expiry: expiry,
                 used: false
             };
-
+            
             records.push(record);
-            updateHistoricalWeeklySummary(record);
+            updateHistoricalWeeklySummary(record, false);
             saveData();
             displayRecords();
+            alert(`✓ 已新增記錄，使用期限：${expiry}`);
         }
 
+        // 刪除記錄
         function deleteRecord(id) {
             const record = records.find(record => record.id === id);
             if (record) {
-                // Update historical summary before deleting
                 const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
                 if (historicalWeeklySummary[week] && historicalWeeklySummary[week][record.user]) {
-                    historicalWeeklySummary[week][record.user].total -= record.amount;
-                    historicalWeeklySummary[week][record.user].count -= 1;
-                    historicalWeeklySummary[week][record.user].used -= record.used ? record.amount : 0;
-                    historicalWeeklySummary[week][record.user].unused -= record.used ? 0 : record.amount;
-                    if (historicalWeeklySummary[week][record.user].count === 0) {
+                    const sum = historicalWeeklySummary[week][record.user];
+                    sum.total -= record.amount;
+                    sum.count -= 1;
+                    sum.used -= record.used ? record.amount : 0;
+                    sum.unused -= record.used ? 0 : record.amount;
+                    if (sum.count === 0) {
                         delete historicalWeeklySummary[week][record.user];
                         if (Object.keys(historicalWeeklySummary[week]).length === 0) {
                             delete historicalWeeklySummary[week];
@@ -268,6 +382,7 @@
             }
         }
 
+        // 切換已使用狀態
         function toggleUsed(id) {
             const record = records.find(record => record.id === id);
             if (record) {
@@ -278,30 +393,7 @@
             }
         }
 
-        function updateHistoricalWeeklySummary(record, isToggle = false) {
-            const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
-            if (!historicalWeeklySummary[week]) {
-                historicalWeeklySummary[week] = {};
-            }
-            if (!historicalWeeklySummary[week][record.user]) {
-                historicalWeeklySummary[week][record.user] = { total: 0, count: 0, used: 0, unused: 0 };
-            }
-            
-            if (isToggle) {
-                if (record.used) {
-                    historicalWeeklySummary[week][record.user].used += record.amount;
-                    historicalWeeklySummary[week][record.user].unused -= record.amount;
-                } else {
-                    historicalWeeklySummary[week][record.user].used -= record.amount;
-                    historicalWeeklySummary[week][record.user].unused += record.amount;
-                }
-            } else {
-                historicalWeeklySummary[week][record.user].total += record.amount;
-                historicalWeeklySummary[week][record.user].count += 1;
-                historicalWeeklySummary[week][record.user].unused += record.amount;
-            }
-        }
-
+        // 金額區間樣式
         function getAmountClass(amount) {
             if (amount == 10) return 'amount-very-low';
             if (amount == 20) return 'amount-low';
@@ -311,10 +403,10 @@
             return '';
         }
 
+        // 排序表格 (以當前用戶)
         function sortTable(key) {
             const selectedUser = document.getElementById('user').value;
             let filteredRecords = records.filter(record => record.user === selectedUser);
-
             filteredRecords.sort((a, b) => {
                 let valueA = a[key];
                 let valueB = b[key];
@@ -324,9 +416,7 @@
                     return valueA.localeCompare(valueB) * sortDirection[key];
                 }
             });
-
             sortDirection[key] = -sortDirection[key];
-
             const tbody = document.getElementById('recordsTable');
             tbody.innerHTML = '';
             filteredRecords.forEach(record => {
@@ -334,8 +424,8 @@
                 const amountClass = getAmountClass(record.amount);
                 const usedClass = record.used ? 'used-yes' : 'used-no';
                 row.innerHTML = `
-                    <td>${record.user}</td>
-                    <td>${record.bank}</td>
+                    <td>${escapeHtml(record.user)}</td>
+                    <td>${escapeHtml(record.bank)}</td>
                     <td class="${amountClass}">${record.amount}</td>
                     <td>${record.drawDate}</td>
                     <td>${record.expiry}</td>
@@ -346,44 +436,48 @@
             });
         }
 
+        // 防XSS小工具
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // 顯示記錄及所有統計摘要
         function displayRecords() {
             const tbody = document.getElementById('recordsTable');
             tbody.innerHTML = '';
             const selectedUser = document.getElementById('user').value;
+            const userRecords = records.filter(record => record.user === selectedUser);
             
-            records
-                .filter(record => record.user === selectedUser)
-                .forEach(record => {
-                    const row = document.createElement('tr');
-                    const amountClass = getAmountClass(record.amount);
-                    const usedClass = record.used ? 'used-yes' : 'used-no';
-                    row.innerHTML = `
-                        <td>${record.user}</td>
-                        <td>${record.bank}</td>
-                        <td class="${amountClass}">${record.amount}</td>
-                        <td>${record.drawDate}</td>
-                        <td>${record.expiry}</td>
-                        <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
-                        <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
+            userRecords.forEach(record => {
+                const row = document.createElement('tr');
+                const amountClass = getAmountClass(record.amount);
+                const usedClass = record.used ? 'used-yes' : 'used-no';
+                row.innerHTML = `
+                    <td>${escapeHtml(record.user)}</td>
+                    <td>${escapeHtml(record.bank)}</td>
+                    <td class="${amountClass}">${record.amount}</td>
+                    <td>${record.drawDate}</td>
+                    <td>${record.expiry}</td>
+                    <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
+                    <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+            
             displaySummaries();
         }
 
-        function getWeekNumber(date) {
-            const d = new Date(date);
-            d.setHours(0, 0, 0, 0);
-            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-            const week1 = new Date(d.getFullYear(), 0, 4);
-            return Math.round(((d - week1) / 86400000 + 1) / 7);
-        }
-
+        // 銀行小結、每週總結、歷史累計
         function displaySummaries() {
             const selectedUser = document.getElementById('user').value;
             const filteredRecords = records.filter(record => record.user === selectedUser);
-
+            
             // 銀行小結
             const bankSummary = {};
             filteredRecords.forEach(record => {
@@ -398,15 +492,14 @@
                     bankSummary[record.bank].unused += record.amount;
                 }
             });
-
-            let bankSummaryHtml = '<div class="summary"><h3>銀行小結</h3><ul>';
+            let bankSummaryHtml = '<div class="summary"><h3>🏦 銀行小結</h3><ul>';
             for (const bank in bankSummary) {
                 bankSummaryHtml += `<li>${bank}: 總金額 ${bankSummary[bank].total}, 記錄數 ${bankSummary[bank].count}, 已使用 ${bankSummary[bank].used}, 未使用 ${bankSummary[bank].unused}</li>`;
             }
             bankSummaryHtml += '</ul></div>';
             document.getElementById('bankSummary').innerHTML = bankSummaryHtml;
-
-            // 每周金額總結
+            
+            // 每週金額總結 (基於抽獎日期)
             const weeklySummary = {};
             filteredRecords.forEach(record => {
                 const week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
@@ -421,16 +514,15 @@
                     weeklySummary[week].unused += record.amount;
                 }
             });
-
-            let weeklySummaryHtml = '<div class="summary"><h3>每周金額總結</h3><ul>';
+            let weeklySummaryHtml = '<div class="summary"><h3>📅 每週抽獎總結 (按抽獎週)</h3><ul>';
             for (const week in weeklySummary) {
                 weeklySummaryHtml += `<li>${week}: 總金額 ${weeklySummary[week].total}, 記錄數 ${weeklySummary[week].count}, 已使用 ${weeklySummary[week].used}, 未使用 ${weeklySummary[week].unused}</li>`;
             }
             weeklySummaryHtml += '</ul></div>';
             document.getElementById('weeklySummary').innerHTML = weeklySummaryHtml;
-
-            // 歷史每周總結
-            let historicalSummaryHtml = '<div class="summary"><h3>歷史每周總結</h3><ul>';
+            
+            // 歷史每週總結 (跨週保留)
+            let historicalSummaryHtml = '<div class="summary"><h3>📚 歷史每週統計 (永久累計)</h3><ul>';
             for (const week in historicalWeeklySummary) {
                 if (historicalWeeklySummary[week][selectedUser]) {
                     const summary = historicalWeeklySummary[week][selectedUser];
@@ -438,13 +530,9 @@
                 }
             }
             historicalSummaryHtml += '</ul></div>';
-            document.getElementById('cumulativeWeeklySummary').innerHTML = historicalSummaryHtml;
-
-            // 累計總結
-            let cumulativeTotal = 0;
-            let cumulativeCount = 0;
-            let cumulativeUsed = 0;
-            let cumulativeUnused = 0;
+            
+            // 累計總結 (所有歷史週)
+            let cumulativeTotal = 0, cumulativeCount = 0, cumulativeUsed = 0, cumulativeUnused = 0;
             for (const week in historicalWeeklySummary) {
                 if (historicalWeeklySummary[week][selectedUser]) {
                     cumulativeTotal += historicalWeeklySummary[week][selectedUser].total;
@@ -455,51 +543,59 @@
             }
             const cumulativeSummaryHtml = `
                 <div class="summary">
-                    <h3>累計總結</h3>
+                    <h3>📊 累計總結 (所有歷史紀錄)</h3>
                     <p>總金額: ${cumulativeTotal}</p>
                     <p>總記錄數: ${cumulativeCount}</p>
                     <p>已使用金額: ${cumulativeUsed}</p>
                     <p>未使用金額: ${cumulativeUnused}</p>
                 </div>
             `;
-            document.getElementById('cumulativeWeeklySummary').innerHTML += cumulativeSummaryHtml;
+            document.getElementById('cumulativeWeeklySummary').innerHTML = historicalSummaryHtml + cumulativeSummaryHtml;
         }
 
-        function checkMondayReset() {
+        // ---------- 新規定的重置邏輯：每週五清空當前 records (保留歷史總結) ----------
+        // 檢查今天是否為星期五，若是且尚未重置則清空 records
+        function checkFridayReset() {
             const today = new Date();
-            if (today.getDay() === 1) {
-                const lastReset = localStorage.getItem('lastReset');
+            const isFriday = (today.getDay() === 5); // 5 = 星期五
+            if (isFriday) {
+                const lastReset = localStorage.getItem('lastFridayReset');
                 const todayStr = today.toDateString();
-                
                 if (lastReset !== todayStr) {
-                    records = [];
-                    saveData();
-                    localStorage.setItem('lastReset', todayStr);
-                    displayRecords();
+                    // 清空所有 active 記錄 (已經過使用期限 週一~週四，週五開始新週期)
+                    if (records.length > 0) {
+                        records = [];
+                        saveData();
+                        displayRecords();
+                        console.log("週五重置：已清空本週期記錄，歷史總結保留。");
+                    }
+                    localStorage.setItem('lastFridayReset', todayStr);
                 }
             }
         }
 
+        // 匯出資料 (含用戶、記錄、歷史總結)
         function exportData() {
             const data = {
                 users: users,
                 records: records,
-                historicalWeeklySummary: historicalWeeklySummary
+                historicalWeeklySummary: historicalWeeklySummary,
+                version: "2.0_fri_sun_draw"
             };
             const json = JSON.stringify(data);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'draw_records.json';
+            a.download = 'draw_records_new_system.json';
             a.click();
             URL.revokeObjectURL(url);
         }
 
+        // 匯入資料 (合併，並對匯入記錄強制套用新制使用期限)
         function importData() {
             const file = document.getElementById('importFile').files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -507,21 +603,29 @@
                     const importedUsers = data.users || [];
                     const importedRecords = data.records || [];
                     const importedHistoricalSummary = data.historicalWeeklySummary || {};
-
+                    
+                    // 合併使用者
                     importedUsers.forEach(newUser => {
                         if (!users.includes(newUser)) {
                             users.push(newUser);
                         }
                     });
-
+                    
+                    // 合併記錄，並重新產生符合新規定的 expiry
                     importedRecords.forEach(newRecord => {
                         if (!records.some(record => record.id === newRecord.id)) {
+                            // 確保使用新制使用期限
+                            if (newRecord.drawDate) {
+                                newRecord.expiry = getMondayToThursdayRange(newRecord.drawDate);
+                            } else {
+                                newRecord.expiry = "日期錯誤";
+                            }
                             records.push(newRecord);
-                            updateHistoricalWeeklySummary(newRecord);
+                            updateHistoricalWeeklySummary(newRecord, false);
                         }
                     });
-
-                    // Merge historical weekly summary
+                    
+                    // 合併歷史每週總結
                     for (const week in importedHistoricalSummary) {
                         if (!historicalWeeklySummary[week]) {
                             historicalWeeklySummary[week] = {};
@@ -537,11 +641,11 @@
                             }
                         }
                     }
-
+                    
                     saveData();
                     updateUserSelect();
                     displayRecords();
-                    alert('資料匯入成功，已合併新資料');
+                    alert('資料匯入成功，已合併並自動套用新規定使用期限 (週一~週四)');
                 } catch (err) {
                     alert('匯入失敗：無效的資料格式');
                 }
@@ -549,12 +653,22 @@
             reader.readAsText(file);
         }
 
-        updateUserSelect();
-        checkMondayReset();
-        displayRecords();
-
-        document.getElementById('user').addEventListener('change', displayRecords);
-        setInterval(checkMondayReset, 60000);
+        // 初始化：遷移舊資料 + 重置檢查 + 顯示
+        function init() {
+            updateUserSelect();
+            // 將舊的expiry更新為新規定的使用期限 (如果尚未遷移)
+            migrateExpiryToNewRule();
+            // 執行週五重置檢查 (若今天週五且未重置則清空)
+            checkFridayReset();
+            displayRecords();
+            // 監聽用戶切換
+            document.getElementById('user').addEventListener('change', displayRecords);
+            // 每小時檢查一次重置 (避免頻繁)
+            setInterval(checkFridayReset, 3600000);
+        }
+        
+        // 啟動系統
+        init();
     </script>
 </body>
 </html>
