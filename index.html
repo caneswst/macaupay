@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>抽獎金額記錄系統 (新版：五六日抽獎，一至四使用)</title>
+    <title>抽獎金額記錄系統 (自動日期版)</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -18,6 +18,15 @@
         margin-bottom: 15px;
         font-size: 18px;
         border-radius: 4px;
+    }
+    .info-badge {
+        background-color: #d1ecf1;
+        border-left: 5px solid #17a2b8;
+        padding: 8px 12px;
+        margin-bottom: 15px;
+        font-size: 18px;
+        border-radius: 4px;
+        color: #0c5460;
     }
     table {
         width: 100%;
@@ -37,6 +46,15 @@
     .input-group {
         margin: 10px 0;
         font-size: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+    .input-group label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
     .input-group select, .input-group input, .input-group button {
         font-size: 20px;
@@ -45,6 +63,7 @@
     button {
         padding: 8px 12px;
         margin: 0 5px;
+        cursor: pointer;
     }
     .amount-very-low { background-color: #d4edda; }
     .amount-low { background-color: #fff3cd; }
@@ -63,10 +82,21 @@
     .summary h3 {
         margin-top: 0;
     }
+    .date-auto-hint {
+        background-color: #e2f0e6;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 18px;
+        color: #2c6e2c;
+        display: inline-block;
+    }
+    .hidden-date {
+        display: none;
+    }
     @media (max-width: 600px) {
         body { font-size: 24px; }
         th, td { font-size: 26px; padding: 12px; }
-        .input-group { font-size: 24px; }
+        .input-group { font-size: 24px; flex-direction: column; align-items: stretch; }
         .input-group select, .input-group input, .input-group button {
             font-size: 24px;
             padding: 8px;
@@ -77,25 +107,27 @@
 </style>
 </head>
 <body>
-    <h1>抽獎金額記錄系統 (新制：五六日抽獎，一至四使用)</h1>
+    <h1>🎲 抽獎金額記錄系統 (智能日期版)</h1>
     <div class="warning-note">
-        📌 新規定：僅限 <strong>星期五、六、日</strong> 可進行抽獎登記，獎金使用期限為 <strong>下週一 至 下週四</strong>。<br>
-        🔄 系統每週五自動清空上週期記錄 (已使用/未使用均歸檔至歷史統計)，請於使用期限內標記「已使用」。
+        📌 <strong>新彈性安排</strong>：<br>
+        ✅ <strong>星期五、六、日</strong> → 可手動選擇抽獎日 (必須為五六日)，獎金使用期限為 <strong>下週一 至 下週四</strong>。<br>
+        ✅ <strong>星期一 至 星期四</strong> → 系統<strong>自動以「今日」為抽獎日</strong>，無需輸入日期，一鍵新增記錄。<br>
+        🔄 每週五自動清空上週期記錄 (已使用/未使用均歸檔至歷史統計)，請於使用期限內標記「已使用」。
     </div>
 
     <div class="input-group">
         <label>新增使用者名稱: 
             <input type="text" id="newUser" placeholder="輸入新使用者名稱">
-            <button onclick="addUser()">新增使用者</button>
+            <button onclick="addUser()">➕ 新增使用者</button>
         </label>
     </div>
 
     <div class="input-group">
-        <label>選擇用戶: 
+        <label>👤 選擇用戶: 
             <select id="user"></select>
         </label>
         
-        <label>選擇銀行: 
+        <label>🏦 選擇銀行: 
             <select id="bank">
                 <option value="中銀">中銀</option>
                 <option value="大豐">大豐</option>
@@ -108,7 +140,7 @@
             </select>
         </label>
         
-        <label>抽獎金額: 
+        <label>💰 抽獎金額: 
             <select id="amount">
                 <option value="10">10</option>
                 <option value="20">20</option>
@@ -118,23 +150,27 @@
             </select>
         </label>
         
-        <label>抽獎日期 (五六日): 
-            <input type="date" id="drawDate">
-        </label>
+        <!-- 日期區域：五六日顯示輸入框，平日隱藏並自動填入當天 -->
+        <div id="dateInputContainer" style="display: inline-flex; align-items: center; gap: 8px;">
+            <label>📅 抽獎日期 (五六日): 
+                <input type="date" id="drawDate">
+            </label>
+            <span id="autoDateHint" class="date-auto-hint" style="display: none;">✨ 自動使用今日日期</span>
+        </div>
         
-        <button onclick="addRecord()">新增記錄</button>
+        <button onclick="addRecord()">📝 新增記錄</button>
     </div>
 
     <div class="input-group">
-        <label>刪除使用者: 
+        <label>🗑️ 刪除使用者: 
             <select id="deleteUserSelect"></select>
             <button onclick="deleteUser()">刪除使用者及其記錄</button>
         </label>
     </div>
 
     <div class="input-group">
-        <button onclick="exportData()">匯出資料</button>
-        <label>匯入資料: 
+        <button onclick="exportData()">📤 匯出資料</button>
+        <label>📂 匯入資料: 
             <input type="file" id="importFile" accept=".json" onchange="importData()">
         </label>
     </div>
@@ -146,7 +182,7 @@
                 <th onclick="sortTable('bank')">銀行</th>
                 <th onclick="sortTable('amount')">抽獎金額</th>
                 <th>抽獎日期</th>
-                <th>使用期限 (週一~週四)</th>
+                <th>使用期限 (下週一~四)</th>
                 <th>已使用</th>
                 <th>操作</th>
             </tr>
@@ -165,13 +201,13 @@
         let historicalWeeklySummary = JSON.parse(localStorage.getItem('historicalWeeklySummary')) || {};
         let sortDirection = { user: 1, bank: 1, amount: 1 };
 
-        // ---------- 輔助函式：取得下週一 ~ 下週四日期區間 (新規定使用期限) ----------
+        // ---------- 輔助函式：取得下週一 ~ 下週四日期區間 (適用所有抽獎日) ----------
         function getMondayToThursdayRange(drawDateStr) {
             const drawDate = new Date(drawDateStr);
             if (isNaN(drawDate.getTime())) return "無效日期";
             
             // 計算下週一 (抽獎日之後的第一個星期一)
-            const dayOfWeek = drawDate.getDay(); // 0=週日, 5=週五, 6=週六
+            const dayOfWeek = drawDate.getDay(); // 0=週日, 1=週一...
             let daysUntilMonday = 0;
             if (dayOfWeek === 5) {        // 星期五 -> 下週一 +3天
                 daysUntilMonday = 3;
@@ -180,7 +216,7 @@
             } else if (dayOfWeek === 0) {  // 星期日 -> 下週一 +1天
                 daysUntilMonday = 1;
             } else {
-                // 理論上抽獎日期只會是5,6,0，但若其他日期被錯誤輸入，仍強制找下週一
+                // 星期一至星期四：也是找「下週一」 (例如週一抽，下週一為7天後)
                 daysUntilMonday = (8 - dayOfWeek) % 7;
                 if (daysUntilMonday === 0) daysUntilMonday = 7;
             }
@@ -199,28 +235,74 @@
             return `${formatYMD(nextMonday)} ~ ${formatYMD(nextThursday)}`;
         }
 
-        // ---------- 資料遷移：將舊紀錄的expiry（週末格式）更新為新制使用期限 ----------
-        function migrateExpiryToNewRule() {
-            let updated = false;
-            records.forEach(record => {
-                const newExpiry = getMondayToThursdayRange(record.drawDate);
-                if (record.expiry !== newExpiry) {
-                    record.expiry = newExpiry;
-                    updated = true;
-                }
-            });
-            if (updated) {
-                saveData();
-                console.log("已將舊記錄的使用期限遷移至新規定 (週一~週四)");
-            }
-        }
-
         // 檢查日期是否為星期五、六、日 (5,6,0)
         function isValidDrawDate(dateStr) {
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) return false;
             const day = date.getDay();
-            return (day === 5 || day === 6 || day === 0); // 5:週五, 6:週六, 0:週日
+            return (day === 5 || day === 6 || day === 0);
+        }
+
+        // 判斷今天是否為五六日 (用於控制日期欄位顯示)
+        function isTodayWeekendDrawDay() {
+            const today = new Date();
+            const day = today.getDay();
+            return (day === 5 || day === 6 || day === 0);
+        }
+
+        // 取得今天的 YYYY-MM-DD
+        function getTodayYMD() {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // 控制日期輸入框的顯示/隱藏 以及 提示文字 (根據今天是否為五六日)
+        function updateDateInputVisibility() {
+            const isWeekendDrawDay = isTodayWeekendDrawDay();
+            const dateInput = document.getElementById('drawDate');
+            const container = document.getElementById('dateInputContainer');
+            const autoHint = document.getElementById('autoDateHint');
+            
+            if (!isWeekendDrawDay) {
+                // 星期一 至 星期四：隱藏日期選擇框，顯示自動提示，並且清空輸入值 (不需要顯示)
+                if (dateInput) {
+                    dateInput.classList.add('hidden-date');
+                    dateInput.style.display = 'none';
+                }
+                if (autoHint) autoHint.style.display = 'inline-block';
+                // 將日期預設為今天 (但UI看不見，addRecord會自動取今天)
+                if (dateInput) dateInput.value = getTodayYMD();
+            } else {
+                // 星期五、六、日：顯示日期選擇框，預設今天 (今天必定符合五六日)
+                if (dateInput) {
+                    dateInput.classList.remove('hidden-date');
+                    dateInput.style.display = 'inline-block';
+                    if (!dateInput.value) {
+                        dateInput.value = getTodayYMD();
+                    }
+                }
+                if (autoHint) autoHint.style.display = 'none';
+            }
+        }
+
+        // 取得目前應該使用的抽獎日期 (依據UI模式)
+        function getCurrentDrawDate() {
+            const isWeekendDrawDay = isTodayWeekendDrawDay();
+            const dateInput = document.getElementById('drawDate');
+            if (!isWeekendDrawDay) {
+                // 平日模式: 一律使用今天日期 (無需使用者輸入)
+                return getTodayYMD();
+            } else {
+                // 五六日模式: 使用使用者選擇的日期，若無則今天
+                let selectedDate = dateInput ? dateInput.value : '';
+                if (!selectedDate) {
+                    selectedDate = getTodayYMD();
+                }
+                return selectedDate;
+            }
         }
 
         // 儲存資料至 localStorage
@@ -253,7 +335,7 @@
                 saveData();
                 updateUserSelect();
                 document.getElementById('newUser').value = '';
-                alert('已新增使用者: ' + newUser);
+                alert('✅ 已新增使用者: ' + newUser);
             } else if (!newUser) {
                 alert('請輸入使用者名稱');
             } else {
@@ -264,7 +346,7 @@
         // 刪除使用者及相關記錄
         function deleteUser() {
             const userToDelete = document.getElementById('deleteUserSelect').value;
-            if (confirm(`確定要刪除使用者 ${userToDelete} 及其所有記錄嗎？`)) {
+            if (confirm(`⚠️ 確定要刪除使用者 ${userToDelete} 及其所有記錄嗎？`)) {
                 users = users.filter(user => user !== userToDelete);
                 records = records.filter(record => record.user !== userToDelete);
                 // 刪除歷史週總結中的使用者資料
@@ -277,7 +359,7 @@
                 saveData();
                 updateUserSelect();
                 displayRecords();
-                alert(`已刪除使用者 ${userToDelete} 及其記錄`);
+                alert(`🗑️ 已刪除使用者 ${userToDelete} 及其記錄`);
             }
         }
 
@@ -317,36 +399,56 @@
             }
         }
 
-        // 新增抽獎記錄 (僅限週五、六、日)
+        // 新增抽獎記錄 (智能判斷日期模式：平日自動使用今日且不驗證五六日；五六日則驗證且可選)
         function addRecord() {
             const user = document.getElementById('user').value;
             const bank = document.getElementById('bank').value;
             const amount = parseFloat(document.getElementById('amount').value);
-            let drawDateInput = document.getElementById('drawDate').value;
-            
-            if (!drawDateInput) {
-                // 預設今天，但今天若非五六日則警告
-                drawDateInput = new Date().toISOString().split('T')[0];
-            }
             
             if (!amount || isNaN(amount)) {
                 alert('請選擇有效金額');
                 return;
             }
             
-            // 新規定: 抽獎日期必須是星期五、六、日
-            if (!isValidDrawDate(drawDateInput)) {
-                alert("❌ 新規定：僅能在星期五、六、日進行抽獎登記！\n請選擇週五、週六或週日的日期。");
-                return;
+            // 取得目前應使用的抽獎日期 (根據模式自動或使用者輸入)
+            const drawDateInput = getCurrentDrawDate();
+            const isWeekendMode = isTodayWeekendDrawDay();  // 今天是否五六日 (影響驗證規則)
+            
+            // 驗證邏輯:
+            // - 若今天為五六日 (週末模式): 使用者可手動選日期，但必須符合五六日規則
+            // - 若今天為平日 (自動模式): 日期強制等於今天 (週一~週四)，直接跳過五六日驗證
+            if (isWeekendMode) {
+                if (!isValidDrawDate(drawDateInput)) {
+                    alert("❌ 今日為星期五/六/日，抽獎日期必須為星期五、六或日！\n請選擇正確的抽獎日 (五、六、日)。");
+                    return;
+                }
+            } else {
+                // 平日模式: 日期必定是今天 (週一至週四)，系統自動採用，不須額外驗證五六日
+                // 但確保日期與今天一致 (避免任何手動竄改)
+                const todayStr = getTodayYMD();
+                if (drawDateInput !== todayStr) {
+                    // 理論上不應發生，但保險同步
+                    console.warn("平日模式強制修正日期為今日");
+                    // 這裡不用阻擋，直接繼續但用正確日期 (再重新取得一次)
+                    // 重新取得今日日期確保一致性
+                    const finalDate = getTodayYMD();
+                    addRecordInternal(user, bank, amount, finalDate);
+                    return;
+                }
             }
             
-            const expiry = getMondayToThursdayRange(drawDateInput);
+            addRecordInternal(user, bank, amount, drawDateInput);
+        }
+        
+        // 內部實際新增邏輯
+        function addRecordInternal(user, bank, amount, drawDateStr) {
+            const expiry = getMondayToThursdayRange(drawDateStr);
             const record = {
                 id: Date.now(),
                 user,
                 bank,
                 amount: amount,
-                drawDate: drawDateInput,
+                drawDate: drawDateStr,
                 expiry: expiry,
                 used: false
             };
@@ -355,7 +457,9 @@
             updateHistoricalWeeklySummary(record, false);
             saveData();
             displayRecords();
-            alert(`✓ 已新增記錄，使用期限：${expiry}`);
+            
+            const modeMsg = isTodayWeekendDrawDay() ? `📅 抽獎日：${drawDateStr}` : `🤖 自動以今日(${drawDateStr})為抽獎日`;
+            alert(`✅ 新增成功！${modeMsg}\n使用期限：${expiry}`);
         }
 
         // 刪除記錄
@@ -403,7 +507,7 @@
             return '';
         }
 
-        // 排序表格 (以當前用戶)
+        // 排序表格
         function sortTable(key) {
             const selectedUser = document.getElementById('user').value;
             let filteredRecords = records.filter(record => record.user === selectedUser);
@@ -430,13 +534,13 @@
                     <td>${record.drawDate}</td>
                     <td>${record.expiry}</td>
                     <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
-                    <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
+                    <td><button onclick="deleteRecord(${record.id})">🗑️ 刪除</button></td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-        // 防XSS小工具
+        // 防XSS
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -465,7 +569,7 @@
                     <td>${record.drawDate}</td>
                     <td>${record.expiry}</td>
                     <td class="${usedClass}" onclick="toggleUsed(${record.id})">${record.used ? '是' : '否'}</td>
-                    <td><button onclick="deleteRecord(${record.id})">刪除</button></td>
+                    <td><button onclick="deleteRecord(${record.id})">🗑️ 刪除</button></td>
                 `;
                 tbody.appendChild(row);
             });
@@ -521,7 +625,7 @@
             weeklySummaryHtml += '</ul></div>';
             document.getElementById('weeklySummary').innerHTML = weeklySummaryHtml;
             
-            // 歷史每週總結 (跨週保留)
+            // 歷史每週總結 (永久累計)
             let historicalSummaryHtml = '<div class="summary"><h3>📚 歷史每週統計 (永久累計)</h3><ul>';
             for (const week in historicalWeeklySummary) {
                 if (historicalWeeklySummary[week][selectedUser]) {
@@ -553,16 +657,14 @@
             document.getElementById('cumulativeWeeklySummary').innerHTML = historicalSummaryHtml + cumulativeSummaryHtml;
         }
 
-        // ---------- 新規定的重置邏輯：每週五清空當前 records (保留歷史總結) ----------
-        // 檢查今天是否為星期五，若是且尚未重置則清空 records
+        // 每週五重置邏輯 (清空目前 records，保留歷史總結)
         function checkFridayReset() {
             const today = new Date();
-            const isFriday = (today.getDay() === 5); // 5 = 星期五
+            const isFriday = (today.getDay() === 5);
             if (isFriday) {
                 const lastReset = localStorage.getItem('lastFridayReset');
                 const todayStr = today.toDateString();
                 if (lastReset !== todayStr) {
-                    // 清空所有 active 記錄 (已經過使用期限 週一~週四，週五開始新週期)
                     if (records.length > 0) {
                         records = [];
                         saveData();
@@ -574,25 +676,25 @@
             }
         }
 
-        // 匯出資料 (含用戶、記錄、歷史總結)
+        // 匯出資料
         function exportData() {
             const data = {
                 users: users,
                 records: records,
                 historicalWeeklySummary: historicalWeeklySummary,
-                version: "2.0_fri_sun_draw"
+                version: "3.0_auto_date_mode"
             };
             const json = JSON.stringify(data);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'draw_records_new_system.json';
+            a.download = 'draw_records_auto_date.json';
             a.click();
             URL.revokeObjectURL(url);
         }
 
-        // 匯入資料 (合併，並對匯入記錄強制套用新制使用期限)
+        // 匯入資料 (合併，並重新產生使用期限)
         function importData() {
             const file = document.getElementById('importFile').files[0];
             if (!file) return;
@@ -604,17 +706,14 @@
                     const importedRecords = data.records || [];
                     const importedHistoricalSummary = data.historicalWeeklySummary || {};
                     
-                    // 合併使用者
                     importedUsers.forEach(newUser => {
                         if (!users.includes(newUser)) {
                             users.push(newUser);
                         }
                     });
                     
-                    // 合併記錄，並重新產生符合新規定的 expiry
                     importedRecords.forEach(newRecord => {
                         if (!records.some(record => record.id === newRecord.id)) {
-                            // 確保使用新制使用期限
                             if (newRecord.drawDate) {
                                 newRecord.expiry = getMondayToThursdayRange(newRecord.drawDate);
                             } else {
@@ -625,7 +724,6 @@
                         }
                     });
                     
-                    // 合併歷史每週總結
                     for (const week in importedHistoricalSummary) {
                         if (!historicalWeeklySummary[week]) {
                             historicalWeeklySummary[week] = {};
@@ -645,7 +743,7 @@
                     saveData();
                     updateUserSelect();
                     displayRecords();
-                    alert('資料匯入成功，已合併並自動套用新規定使用期限 (週一~週四)');
+                    alert('✅ 資料匯入成功，已合併並自動套用使用期限 (週一~週四)');
                 } catch (err) {
                     alert('匯入失敗：無效的資料格式');
                 }
@@ -653,18 +751,37 @@
             reader.readAsText(file);
         }
 
-        // 初始化：遷移舊資料 + 重置檢查 + 顯示
+        // 遷移舊紀錄 (確保使用期限正確)
+        function migrateExpiryToNewRule() {
+            let updated = false;
+            records.forEach(record => {
+                const newExpiry = getMondayToThursdayRange(record.drawDate);
+                if (record.expiry !== newExpiry) {
+                    record.expiry = newExpiry;
+                    updated = true;
+                }
+            });
+            if (updated) {
+                saveData();
+                console.log("已將舊記錄的使用期限遷移至新規定 (週一~週四)");
+            }
+        }
+
+        // 初始化
         function init() {
             updateUserSelect();
-            // 將舊的expiry更新為新規定的使用期限 (如果尚未遷移)
             migrateExpiryToNewRule();
-            // 執行週五重置檢查 (若今天週五且未重置則清空)
+            updateDateInputVisibility();     // 根據今天星期幾控制日期欄位顯示
             checkFridayReset();
             displayRecords();
             // 監聽用戶切換
             document.getElementById('user').addEventListener('change', displayRecords);
-            // 每小時檢查一次重置 (避免頻繁)
-            setInterval(checkFridayReset, 3600000);
+            // 若五六日模式且使用者手動變更日期，不影響整體邏輯；另外確保每次開關模式不會混亂
+            // 每小時檢查重置 + 每小時重新檢查日期可見性 (跨午夜時自動適應)
+            setInterval(() => {
+                updateDateInputVisibility();
+                checkFridayReset();
+            }, 3600000);
         }
         
         // 啟動系統
