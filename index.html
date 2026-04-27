@@ -2,7 +2,8 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>抽獎金額記錄系統 (自動日期版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>抽獎金額記錄系統 (極簡確認版)</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -10,6 +11,7 @@
         margin: 20px auto;
         padding: 20px;
         font-size: 20px;
+        background: #fefefe;
     }
     .warning-note {
         background-color: #fff0b3;
@@ -42,6 +44,7 @@
     th {
         background-color: #f2f2f2;
         cursor: pointer;
+        user-select: none;
     }
     .input-group {
         margin: 10px 0;
@@ -64,6 +67,13 @@
         padding: 8px 12px;
         margin: 0 5px;
         cursor: pointer;
+        background: #e9ecef;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        transition: 0.1s;
+    }
+    button:active {
+        background: #d4d4d4;
     }
     .amount-very-low { background-color: #d4edda; }
     .amount-low { background-color: #fff3cd; }
@@ -78,6 +88,7 @@
         border: 1px solid #ddd;
         background-color: #f9f9f9;
         font-size: 20px;
+        border-radius: 8px;
     }
     .summary h3 {
         margin-top: 0;
@@ -104,15 +115,32 @@
         button { padding: 10px 15px; }
         .summary { font-size: 24px; }
     }
+    .toast-msg {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #323232e0;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 40px;
+        font-size: 18px;
+        z-index: 999;
+        backdrop-filter: blur(4px);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
 </style>
 </head>
 <body>
-    <h1>🎲 抽獎金額記錄系統 (智能日期版)</h1>
+    <h1>🎲 抽獎金額記錄系統 (即加即存·無彈窗)</h1>
     <div class="warning-note">
         📌 <strong>新彈性安排</strong>：<br>
-        ✅ <strong>星期五、六、日</strong> → 可手動選擇抽獎日 (必須為五六日)，獎金使用期限為 <strong>下週一 至 下週四</strong>。<br>
+        ✅ <strong>星期五、六、日</strong> → 可手動選擇抽獎日 (必須為五六日)，獎金使用期限為 <strong>下週一 ~ 下週四</strong>。<br>
         ✅ <strong>星期一 至 星期四</strong> → 系統<strong>自動以「今日」為抽獎日</strong>，無需輸入日期，一鍵新增記錄。<br>
-        🔄 每週五自動清空上週期記錄 (已使用/未使用均歸檔至歷史統計)，請於使用期限內標記「已使用」。
+        🔄 每週五自動清空本週期記錄 (已使用/未使用均歸檔至歷史統計)，請於使用期限內標記「已使用」。<br>
+        ✨ <strong>改善:</strong> 新增記錄後不再彈出確認視窗，表格即時更新；每次重新開啟頁面，日期欄位自動回到「今日」。
     </div>
 
     <div class="input-group">
@@ -193,6 +221,9 @@
     <div id="bankSummary"></div>
     <div id="weeklySummary"></div>
     <div id="cumulativeWeeklySummary"></div>
+    
+    <!-- 簡潔提示小工具 (非強制確認) -->
+    <div id="toastMsg" class="toast-msg"></div>
 
     <script>
         // ---------- 全域變數 ----------
@@ -201,22 +232,32 @@
         let historicalWeeklySummary = JSON.parse(localStorage.getItem('historicalWeeklySummary')) || {};
         let sortDirection = { user: 1, bank: 1, amount: 1 };
 
+        // 輕提示(非打擾確認，2秒後消失)
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toastMsg');
+            if (!toast) return;
+            toast.style.backgroundColor = isError ? '#c0392be0' : '#2c6e2ce0';
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 1800);
+        }
+
         // ---------- 輔助函式：取得下週一 ~ 下週四日期區間 (適用所有抽獎日) ----------
         function getMondayToThursdayRange(drawDateStr) {
             const drawDate = new Date(drawDateStr);
             if (isNaN(drawDate.getTime())) return "無效日期";
             
-            // 計算下週一 (抽獎日之後的第一個星期一)
             const dayOfWeek = drawDate.getDay(); // 0=週日, 1=週一...
             let daysUntilMonday = 0;
-            if (dayOfWeek === 5) {        // 星期五 -> 下週一 +3天
+            if (dayOfWeek === 5) {        // 星期五
                 daysUntilMonday = 3;
-            } else if (dayOfWeek === 6) {  // 星期六 -> 下週一 +2天
+            } else if (dayOfWeek === 6) {  // 星期六
                 daysUntilMonday = 2;
-            } else if (dayOfWeek === 0) {  // 星期日 -> 下週一 +1天
+            } else if (dayOfWeek === 0) {  // 星期日
                 daysUntilMonday = 1;
             } else {
-                // 星期一至星期四：也是找「下週一」 (例如週一抽，下週一為7天後)
                 daysUntilMonday = (8 - dayOfWeek) % 7;
                 if (daysUntilMonday === 0) daysUntilMonday = 7;
             }
@@ -259,47 +300,46 @@
             return `${y}-${m}-${d}`;
         }
 
-        // 控制日期輸入框的顯示/隱藏 以及 提示文字 (根據今天是否為五六日)
+        // 控制日期輸入框的顯示/隱藏 + 強制重置為今日 (每次打開/刷新都跳到當日)
         function updateDateInputVisibility() {
             const isWeekendDrawDay = isTodayWeekendDrawDay();
             const dateInput = document.getElementById('drawDate');
-            const container = document.getElementById('dateInputContainer');
             const autoHint = document.getElementById('autoDateHint');
             
             if (!isWeekendDrawDay) {
-                // 星期一 至 星期四：隱藏日期選擇框，顯示自動提示，並且清空輸入值 (不需要顯示)
+                // 平日模式：隱藏日期選擇，顯示提示，並強制將內部值設為今日 (確保新增時取今日)
                 if (dateInput) {
                     dateInput.classList.add('hidden-date');
                     dateInput.style.display = 'none';
+                    dateInput.value = getTodayYMD();   // 每次重置當日
                 }
                 if (autoHint) autoHint.style.display = 'inline-block';
-                // 將日期預設為今天 (但UI看不見，addRecord會自動取今天)
-                if (dateInput) dateInput.value = getTodayYMD();
             } else {
-                // 星期五、六、日：顯示日期選擇框，預設今天 (今天必定符合五六日)
+                // 五六日模式：顯示日期選擇，並且每次都重置為「今日」，完全符合「每次打開日期都跳到當日」
                 if (dateInput) {
                     dateInput.classList.remove('hidden-date');
                     dateInput.style.display = 'inline-block';
-                    if (!dateInput.value) {
-                        dateInput.value = getTodayYMD();
-                    }
+                    dateInput.value = getTodayYMD();    // 🔁 強制當日 (無殘留上次手動值)
                 }
                 if (autoHint) autoHint.style.display = 'none';
             }
         }
 
-        // 取得目前應該使用的抽獎日期 (依據UI模式)
+        // 取得目前應該使用的抽獎日期 (平日強制今日，五六日用目前input的值，但預設今日)
         function getCurrentDrawDate() {
-            const isWeekendDrawDay = isTodayWeekendDrawDay();
+            const isWeekendMode = isTodayWeekendDrawDay();
             const dateInput = document.getElementById('drawDate');
-            if (!isWeekendDrawDay) {
-                // 平日模式: 一律使用今天日期 (無需使用者輸入)
+            if (!isWeekendMode) {
+                // 平日模式: 一律使用今天日期
                 return getTodayYMD();
             } else {
-                // 五六日模式: 使用使用者選擇的日期，若無則今天
+                // 五六日模式: 使用使用者選擇的日期，若無效則回退今日
                 let selectedDate = dateInput ? dateInput.value : '';
-                if (!selectedDate) {
-                    selectedDate = getTodayYMD();
+                if (!selectedDate || !isValidDrawDate(selectedDate)) {
+                    // 如果手動清空或日期不對，自動恢復今日 (但今日一定是五六日)
+                    const todayStr = getTodayYMD();
+                    if (dateInput) dateInput.value = todayStr;
+                    return todayStr;
                 }
                 return selectedDate;
             }
@@ -335,11 +375,11 @@
                 saveData();
                 updateUserSelect();
                 document.getElementById('newUser').value = '';
-                alert('✅ 已新增使用者: ' + newUser);
+                showToast(`✅ 已新增使用者: ${newUser}`);
             } else if (!newUser) {
-                alert('請輸入使用者名稱');
+                showToast('請輸入使用者名稱', true);
             } else {
-                alert('此使用者名稱已存在');
+                showToast('此使用者名稱已存在', true);
             }
         }
 
@@ -359,7 +399,7 @@
                 saveData();
                 updateUserSelect();
                 displayRecords();
-                alert(`🗑️ 已刪除使用者 ${userToDelete} 及其記錄`);
+                showToast(`🗑️ 已刪除使用者 ${userToDelete} 及相關記錄`);
             }
         }
 
@@ -399,48 +439,7 @@
             }
         }
 
-        // 新增抽獎記錄 (智能判斷日期模式：平日自動使用今日且不驗證五六日；五六日則驗證且可選)
-        function addRecord() {
-            const user = document.getElementById('user').value;
-            const bank = document.getElementById('bank').value;
-            const amount = parseFloat(document.getElementById('amount').value);
-            
-            if (!amount || isNaN(amount)) {
-                alert('請選擇有效金額');
-                return;
-            }
-            
-            // 取得目前應使用的抽獎日期 (根據模式自動或使用者輸入)
-            const drawDateInput = getCurrentDrawDate();
-            const isWeekendMode = isTodayWeekendDrawDay();  // 今天是否五六日 (影響驗證規則)
-            
-            // 驗證邏輯:
-            // - 若今天為五六日 (週末模式): 使用者可手動選日期，但必須符合五六日規則
-            // - 若今天為平日 (自動模式): 日期強制等於今天 (週一~週四)，直接跳過五六日驗證
-            if (isWeekendMode) {
-                if (!isValidDrawDate(drawDateInput)) {
-                    alert("❌ 今日為星期五/六/日，抽獎日期必須為星期五、六或日！\n請選擇正確的抽獎日 (五、六、日)。");
-                    return;
-                }
-            } else {
-                // 平日模式: 日期必定是今天 (週一至週四)，系統自動採用，不須額外驗證五六日
-                // 但確保日期與今天一致 (避免任何手動竄改)
-                const todayStr = getTodayYMD();
-                if (drawDateInput !== todayStr) {
-                    // 理論上不應發生，但保險同步
-                    console.warn("平日模式強制修正日期為今日");
-                    // 這裡不用阻擋，直接繼續但用正確日期 (再重新取得一次)
-                    // 重新取得今日日期確保一致性
-                    const finalDate = getTodayYMD();
-                    addRecordInternal(user, bank, amount, finalDate);
-                    return;
-                }
-            }
-            
-            addRecordInternal(user, bank, amount, drawDateInput);
-        }
-        
-        // 內部實際新增邏輯
+        // 內部實際新增邏輯 (無彈窗確認)
         function addRecordInternal(user, bank, amount, drawDateStr) {
             const expiry = getMondayToThursdayRange(drawDateStr);
             const record = {
@@ -458,11 +457,39 @@
             saveData();
             displayRecords();
             
-            const modeMsg = isTodayWeekendDrawDay() ? `📅 抽獎日：${drawDateStr}` : `🤖 自動以今日(${drawDateStr})為抽獎日`;
-            alert(`✅ 新增成功！${modeMsg}\n使用期限：${expiry}`);
+            // ✨ 完全不彈出確認視窗，僅用輕提示 (不干擾操作，無需按確定)
+            const modeMsg = isTodayWeekendDrawDay() ? `📅 抽獎日:${drawDateStr}` : `🤖 自動日期:${drawDateStr}`;
+            showToast(`✅ 已新增 ${user} | ${bank} ${amount}元 | ${modeMsg}`);
         }
 
-        // 刪除記錄
+        // 新增抽獎記錄 (自動日期模式，無確認彈窗)
+        function addRecord() {
+            const user = document.getElementById('user').value;
+            const bank = document.getElementById('bank').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            
+            if (!amount || isNaN(amount)) {
+                showToast('請選擇有效金額', true);
+                return;
+            }
+            
+            // 取得目前應使用的抽獎日期 (平日自動今日，五六日可手動但預設今日)
+            const drawDateInput = getCurrentDrawDate();
+            const isWeekendMode = isTodayWeekendDrawDay();
+            
+            // 驗證邏輯: 五六日模式下必須符合五六日規則
+            if (isWeekendMode) {
+                if (!isValidDrawDate(drawDateInput)) {
+                    showToast("❌ 今日為五六日模式，抽獎日期必須為星期五、六或日！請重新選擇。", true);
+                    return;
+                }
+            }
+            
+            // 直接新增，無需二次確認彈窗
+            addRecordInternal(user, bank, amount, drawDateInput);
+        }
+
+        // 刪除記錄 (單筆)
         function deleteRecord(id) {
             const record = records.find(record => record.id === id);
             if (record) {
@@ -483,6 +510,7 @@
                 records = records.filter(r => r.id !== id);
                 saveData();
                 displayRecords();
+                showToast(`🗑️ 已刪除 ${record.user} ${record.amount}元記錄`);
             }
         }
 
@@ -494,6 +522,7 @@
                 updateHistoricalWeeklySummary(record, true);
                 saveData();
                 displayRecords();
+                showToast(`${record.used ? '✅ 標記已使用' : '🔄 標記未使用'} : ${record.amount}元`);
             }
         }
 
@@ -507,7 +536,7 @@
             return '';
         }
 
-        // 排序表格
+        // 排序表格 (保留原排序邏輯)
         function sortTable(key) {
             const selectedUser = document.getElementById('user').value;
             let filteredRecords = records.filter(record => record.user === selectedUser);
@@ -657,7 +686,7 @@
             document.getElementById('cumulativeWeeklySummary').innerHTML = historicalSummaryHtml + cumulativeSummaryHtml;
         }
 
-        // 每週五重置邏輯 (清空目前 records，保留歷史總結)
+        // 每週五重置邏輯
         function checkFridayReset() {
             const today = new Date();
             const isFriday = (today.getDay() === 5);
@@ -669,7 +698,7 @@
                         records = [];
                         saveData();
                         displayRecords();
-                        console.log("週五重置：已清空本週期記錄，歷史總結保留。");
+                        showToast("🧹 週五自動重置：本週期記錄已歸檔，歷史總結保留");
                     }
                     localStorage.setItem('lastFridayReset', todayStr);
                 }
@@ -682,7 +711,7 @@
                 users: users,
                 records: records,
                 historicalWeeklySummary: historicalWeeklySummary,
-                version: "3.0_auto_date_mode"
+                version: "3.1_no_confirm_auto_date"
             };
             const json = JSON.stringify(data);
             const blob = new Blob([json], { type: 'application/json' });
@@ -692,9 +721,10 @@
             a.download = 'draw_records_auto_date.json';
             a.click();
             URL.revokeObjectURL(url);
+            showToast("📁 匯出成功");
         }
 
-        // 匯入資料 (合併，並重新產生使用期限)
+        // 匯入資料
         function importData() {
             const file = document.getElementById('importFile').files[0];
             if (!file) return;
@@ -743,9 +773,9 @@
                     saveData();
                     updateUserSelect();
                     displayRecords();
-                    alert('✅ 資料匯入成功，已合併並自動套用使用期限 (週一~週四)');
+                    showToast("✅ 資料匯入成功，已合併並同步期限");
                 } catch (err) {
-                    alert('匯入失敗：無效的資料格式');
+                    showToast("匯入失敗：無效的資料格式", true);
                 }
             };
             reader.readAsText(file);
@@ -763,7 +793,6 @@
             });
             if (updated) {
                 saveData();
-                console.log("已將舊記錄的使用期限遷移至新規定 (週一~週四)");
             }
         }
 
@@ -771,20 +800,18 @@
         function init() {
             updateUserSelect();
             migrateExpiryToNewRule();
-            updateDateInputVisibility();     // 根據今天星期幾控制日期欄位顯示
+            updateDateInputVisibility();     // 強制日期欄位重置為當日 + 控制顯示
             checkFridayReset();
             displayRecords();
             // 監聽用戶切換
             document.getElementById('user').addEventListener('change', displayRecords);
-            // 若五六日模式且使用者手動變更日期，不影響整體邏輯；另外確保每次開關模式不會混亂
-            // 每小時檢查重置 + 每小時重新檢查日期可見性 (跨午夜時自動適應)
+            // 定時檢查跨日更新日期顯示與週五重置
             setInterval(() => {
                 updateDateInputVisibility();
                 checkFridayReset();
             }, 3600000);
         }
         
-        // 啟動系統
         init();
     </script>
 </body>
