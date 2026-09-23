@@ -173,7 +173,7 @@
     <div class="warning-note">
         📌 <strong>抽獎日必須是 星期五、六、日</strong><br>
         🔄 若今天不是五六日，日期自動「往前調到上一個星期日」<br>
-        📅 使用期限：下週一 ~ 下週四 &nbsp;|&nbsp; 週五自動清空歸檔<br>
+        📅 使用期限：抽獎日當天 ~ 下星期四 &nbsp;|&nbsp; 週五自動清空歸檔<br>
         ✅ 新增記錄無彈窗，輕提示確認
     </div>
 
@@ -293,23 +293,43 @@
             return val;
         }
 
-        // 下週一到四區間
+        // ========== 修改重點 ==========
+        // 使用期限：抽獎日當天 ~ 下星期四
+        // 邏輯：從抽獎日往後推到下一個星期四。
+        // 下星期四的定義：抽獎日之後最近的星期四。
+        // 例如：星期五抽到 -> 下星期四（6天後）
+        //       星期六抽到 -> 下星期四（5天後）
+        //       星期日抽到 -> 下星期四（4天後）
         function getMondayToThursdayRange(drawDateStr) {
             const draw = new Date(drawDateStr);
             if (isNaN(draw.getTime())) return "無效日期";
-            const dow = draw.getDay();
-            let add = 0;
-            if (dow === 5) add = 3;      // 週五 -> 下週一 +3
-            else if (dow === 6) add = 2; // 週六 -> +2
-            else if (dow === 0) add = 1; // 週日 -> +1
-            else add = (8 - dow) % 7 || 7;
-            const mon = new Date(draw);
-            mon.setDate(draw.getDate() + add);
-            const thu = new Date(mon);
-            thu.setDate(mon.getDate() + 3);
+            const dow = draw.getDay(); // 0=星期日, 5=星期五, 6=星期六
+
+            // 計算到下星期四的天數
+            // 星期四的 dow = 4
+            // 若今天是星期五(5)，下星期四 = 5 + 6 = 11 -> 實際上是 6 天後
+            // 若今天是星期六(6)，下星期四 = 6 + 5 = 11 -> 實際上是 5 天後
+            // 若今天是星期日(0)，下星期四 = 0 + 4 = 4  -> 實際上是 4 天後
+            let daysToThursday;
+            if (dow === 0) {
+                daysToThursday = 4; // 星期日 -> 下星期四 (4天後)
+            } else if (dow === 5) {
+                daysToThursday = 6; // 星期五 -> 下星期四 (6天後)
+            } else if (dow === 6) {
+                daysToThursday = 5; // 星期六 -> 下星期四 (5天後)
+            } else {
+                // 其他日子（正常不會出現，但以防萬一）
+                daysToThursday = (4 - dow + 7) % 7;
+                if (daysToThursday === 0) daysToThursday = 7;
+            }
+
+            const thu = new Date(draw);
+            thu.setDate(draw.getDate() + daysToThursday);
+
             const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            return `${fmt(mon)} ~ ${fmt(thu)}`;
+            return `${fmt(draw)} ~ ${fmt(thu)}`;
         }
+        // ========== 修改結束 ==========
 
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
