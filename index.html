@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>抽獎記錄 (手機直式)</title>
+    <title>抽獎記錄 (簡化版)</title>
 <style>
-    * {
-        box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
         font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         max-width: 100%;
@@ -46,8 +44,8 @@
         font-size: 0.9rem;
         width: 100%;
     }
-    .input-group select, 
-    .input-group input, 
+    .input-group select,
+    .input-group input,
     .input-group button {
         font-size: 0.9rem;
         padding: 10px 12px;
@@ -67,7 +65,6 @@
         background: #d4d4d4;
         transform: scale(0.97);
     }
-    /* 表格區域：無橫向滾動，強制內容換行 */
     table {
         width: 100%;
         border-collapse: collapse;
@@ -86,7 +83,6 @@
         font-weight: 600;
         font-size: 0.8rem;
     }
-    /* 金額及狀態樣式 */
     .amount-very-low { background-color: #d4edda; }
     .amount-low { background-color: #fff3cd; }
     .amount-medium { background-color: #b3e5fc; }
@@ -110,15 +106,6 @@
         padding-left: 20px;
         margin: 8px 0;
     }
-    .date-rule-hint {
-        background-color: #e2f0e6;
-        padding: 5px 10px;
-        border-radius: 30px;
-        font-size: 0.7rem;
-        color: #2c6e2c;
-        display: inline-block;
-        white-space: nowrap;
-    }
     .toast-msg {
         position: fixed;
         bottom: 20px;
@@ -138,33 +125,13 @@
         max-width: 85vw;
         white-space: normal;
     }
-    /* 手機專屬：讓表格完全自適應，不滾動 */
     @media (max-width: 640px) {
-        body {
-            padding: 10px;
-        }
-        th, td {
-            font-size: 0.7rem;
-            padding: 6px 2px;
-        }
-        .input-group {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .input-group label {
-            width: 100%;
-            justify-content: space-between;
-        }
-        .input-group select, .input-group input, .input-group button {
-            width: 100%;
-        }
-        button {
-            margin-top: 4px;
-        }
-        .date-rule-hint {
-            font-size: 0.65rem;
-            text-align: center;
-        }
+        body { padding: 10px; }
+        th, td { font-size: 0.7rem; padding: 6px 2px; }
+        .input-group { flex-direction: column; align-items: stretch; }
+        .input-group label { width: 100%; justify-content: space-between; }
+        .input-group select, .input-group input, .input-group button { width: 100%; }
+        button { margin-top: 4px; }
     }
 </style>
 </head>
@@ -172,11 +139,11 @@
     <h1>🎲 抽獎金額記錄</h1>
     <div class="warning-note">
         📌 <strong>抽獎日必須是 星期五、六、日</strong><br>
-        📅  <strong>使用期限：抽獎日當天 ~ 下星期四 &nbsp;|&nbsp; 週五自動清空歸檔 <strong><br>
+        📅 <strong>使用期限：抽獎日當天 ~ 下星期四 &nbsp;|&nbsp; 週五自動清空歸檔</strong>
     </div>
 
     <div class="input-group">
-        <label>➕ 新使用者: 
+        <label>➕ 新使用者:
             <input type="text" id="newUser" placeholder="名稱">
             <button onclick="addUser()">新增</button>
         </label>
@@ -184,23 +151,19 @@
 
     <div class="input-group">
         <label>👤 用戶: <select id="user"></select></label>
-        <label>🏦 銀行: 
+        <label>🏦 銀行:
             <select id="bank">
                 <option>中銀</option><option>大豐</option><option>工商</option>
                 <option>MPAY</option><option>支付寶</option><option>UEPAY</option>
                 <option>國際</option><option>廣發</option>
             </select>
         </label>
-        <label>💰 金額: 
+        <label>💰 金額:
             <select id="amount">
                 <option>10</option><option>20</option><option>50</option>
                 <option>100</option><option>200</option>
             </select>
         </label>
-        <label>📅 抽獎日 (五六日): 
-            <input type="date" id="drawDate">
-        </label>
-        <span class="date-rule-hint">⚠️ 限五六日</span>
         <button onclick="addRecord()">📝 新增記錄</button>
     </div>
 
@@ -211,12 +174,16 @@
         <label>📂 匯入: <input type="file" id="importFile" accept=".json" onchange="importData()"></label>
     </div>
 
-    <!-- 無橫向捲軸容器，直接放表格 -->
     <div style="overflow-x: visible;">
         <table id="dataTable">
             <thead>
-                <tr><th onclick="sortTable('user')">用戶</th><th onclick="sortTable('bank')">銀行</th>
-                <th onclick="sortTable('amount')">金額</th><th>抽獎日</th><th>使用期限</th><th>已使用</th><th>操作</th></tr>
+                <tr>
+                    <th onclick="sortTable('user')">用戶</th>
+                    <th onclick="sortTable('bank')">銀行</th>
+                    <th onclick="sortTable('amount')">金額</th>
+                    <th>已使用</th>
+                    <th>操作</th>
+                </tr>
             </thead>
             <tbody id="recordsTable"></tbody>
         </table>
@@ -243,7 +210,6 @@
             setTimeout(() => t.style.opacity = '0', 1800);
         }
 
-        // 檢查日期是否為五六日
         function isValidDrawDate(dateStr) {
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return false;
@@ -256,18 +222,17 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
-        // 新邏輯：取得上一個星期日 (若今天就是星期日則回傳今天)
+        // 取得上一個星期日 (若今天就是星期日則回傳今天)
         function getPreviousSunday() {
             const today = new Date();
-            const day = today.getDay(); // 0星期日 ~ 6星期六
+            const day = today.getDay();
             if (day === 0) return getTodayYMD();
-            // 往前推 day 天 (例如星期一往前1天到星期日，星期二往前2天...)
             const prevSunday = new Date(today);
             prevSunday.setDate(today.getDate() - day);
             return `${prevSunday.getFullYear()}-${String(prevSunday.getMonth()+1).padStart(2,'0')}-${String(prevSunday.getDate()).padStart(2,'0')}`;
         }
 
-        // 取得「有效的預設抽獎日」: 若今天為五六日則用今天，否則用上一個星期日
+        // 自動取得有效的抽獎日：今日為五六日則用今日，否則用上一個星期日
         function getNearestValidDrawDate() {
             const today = new Date();
             const dow = today.getDay();
@@ -278,56 +243,24 @@
             }
         }
 
-        // 重置日期picker
-        function resetDatePicker() {
-            const inp = document.getElementById('drawDate');
-            if (inp) inp.value = getNearestValidDrawDate();
-        }
-
-        function getCurrentDrawDate() {
-            const inp = document.getElementById('drawDate');
-            let val = inp ? inp.value : '';
-            if (!val) val = getNearestValidDrawDate();
-            return val;
-        }
-
-        // ========== 修改重點 ==========
         // 使用期限：抽獎日當天 ~ 下星期四
-        // 邏輯：從抽獎日往後推到下一個星期四。
-        // 下星期四的定義：抽獎日之後最近的星期四。
-        // 例如：星期五抽到 -> 下星期四（6天後）
-        //       星期六抽到 -> 下星期四（5天後）
-        //       星期日抽到 -> 下星期四（4天後）
         function getMondayToThursdayRange(drawDateStr) {
             const draw = new Date(drawDateStr);
             if (isNaN(draw.getTime())) return "無效日期";
-            const dow = draw.getDay(); // 0=星期日, 5=星期五, 6=星期六
-
-            // 計算到下星期四的天數
-            // 星期四的 dow = 4
-            // 若今天是星期五(5)，下星期四 = 5 + 6 = 11 -> 實際上是 6 天後
-            // 若今天是星期六(6)，下星期四 = 6 + 5 = 11 -> 實際上是 5 天後
-            // 若今天是星期日(0)，下星期四 = 0 + 4 = 4  -> 實際上是 4 天後
+            const dow = draw.getDay();
             let daysToThursday;
-            if (dow === 0) {
-                daysToThursday = 4; // 星期日 -> 下星期四 (4天後)
-            } else if (dow === 5) {
-                daysToThursday = 6; // 星期五 -> 下星期四 (6天後)
-            } else if (dow === 6) {
-                daysToThursday = 5; // 星期六 -> 下星期四 (5天後)
-            } else {
-                // 其他日子（正常不會出現，但以防萬一）
+            if (dow === 0) daysToThursday = 4;
+            else if (dow === 5) daysToThursday = 6;
+            else if (dow === 6) daysToThursday = 5;
+            else {
                 daysToThursday = (4 - dow + 7) % 7;
                 if (daysToThursday === 0) daysToThursday = 7;
             }
-
             const thu = new Date(draw);
             thu.setDate(draw.getDate() + daysToThursday);
-
             const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             return `${fmt(draw)} ~ ${fmt(thu)}`;
         }
-        // ========== 修改結束 ==========
 
         function saveData() {
             localStorage.setItem('users', JSON.stringify(users));
@@ -385,7 +318,7 @@
         function updateHistorical(record, isToggle = false) {
             let week = `${new Date(record.drawDate).getFullYear()}-W${getWeekNumber(record.drawDate)}`;
             if (!historicalWeeklySummary[week]) historicalWeeklySummary[week] = {};
-            if (!historicalWeeklySummary[week][record.user]) 
+            if (!historicalWeeklySummary[week][record.user])
                 historicalWeeklySummary[week][record.user] = { total:0, count:0, used:0, unused:0 };
             let uw = historicalWeeklySummary[week][record.user];
             if (isToggle) {
@@ -407,7 +340,7 @@
             updateHistorical(newRecord, false);
             saveData();
             displayRecords();
-            showToast(`✅ 新增 ${user} | ${bank} ${amount}元 | ${drawDateStr}`);
+            showToast(`✅ 新增 ${user} | ${bank} ${amount}元`);
         }
 
         function addRecord() {
@@ -415,12 +348,8 @@
             let bank = document.getElementById('bank').value;
             let amount = parseFloat(document.getElementById('amount').value);
             if (!amount || isNaN(amount)) { showToast('請選擇金額', true); return; }
-            let drawDate = getCurrentDrawDate();
-            if (!isValidDrawDate(drawDate)) {
-                showToast(`❌ 抽獎日必須是五六日！您選了 ${drawDate}`, true);
-                resetDatePicker();
-                return;
-            }
+            // 自動使用最接近的有效抽獎日（五六日），無需手動選擇
+            let drawDate = getNearestValidDrawDate();
             addRecordInternal(user, bank, amount, drawDate);
         }
 
@@ -465,7 +394,6 @@
             return '';
         }
 
-        // 排序與顯示共用
         function sortTable(key) {
             let curUser = document.getElementById('user').value;
             let filtered = records.filter(r => r.user === curUser);
@@ -488,13 +416,13 @@
                 let amtCell = row.insertCell(2);
                 amtCell.innerText = rec.amount;
                 amtCell.className = getAmountClass(rec.amount);
-                row.insertCell(3).innerText = rec.drawDate;
-                row.insertCell(4).innerText = rec.expiry;
-                let usedCell = row.insertCell(5);
+                // 已使用欄（原本第5欄）
+                let usedCell = row.insertCell(3);
                 usedCell.innerText = rec.used ? '是' : '否';
                 usedCell.className = rec.used ? 'used-yes' : 'used-no';
                 usedCell.onclick = () => toggleUsed(rec.id);
-                let delCell = row.insertCell(6);
+                // 操作欄
+                let delCell = row.insertCell(4);
                 let btn = document.createElement('button');
                 btn.innerText = '刪除';
                 btn.style.fontSize = '0.7rem';
@@ -514,7 +442,6 @@
         function displaySummaries() {
             let user = document.getElementById('user').value;
             let userRecords = records.filter(r => r.user === user);
-            // 銀行小結
             let bankMap = {};
             userRecords.forEach(r => {
                 if (!bankMap[r.bank]) bankMap[r.bank] = { total:0, count:0, used:0, unused:0 };
@@ -530,7 +457,6 @@
             bankHtml += '</ul></div>';
             document.getElementById('bankSummary').innerHTML = bankHtml;
 
-            // 每週總結 (根據抽獎日)
             let weekly = {};
             userRecords.forEach(r => {
                 let week = `${new Date(r.drawDate).getFullYear()}-W${getWeekNumber(r.drawDate)}`;
@@ -540,14 +466,13 @@
                 if (r.used) weekly[week].used += r.amount;
                 else weekly[week].unused += r.amount;
             });
-            let weeklyHtml = '<div class="summary"><h3>📅 每週抽獎總結 (抽獎週)</h3><ul>';
+            let weeklyHtml = '<div class="summary"><h3>📅 每週抽獎總結</h3><ul>';
             for (let w in weekly) {
                 weeklyHtml += `<li>${w}: 總額 ${weekly[w].total} (${weekly[w].count}筆) 已用 ${weekly[w].used} 未用 ${weekly[w].unused}</li>`;
             }
             weeklyHtml += '</ul></div>';
             document.getElementById('weeklySummary').innerHTML = weeklyHtml;
 
-            // 歷史週統計
             let histHtml = '<div class="summary"><h3>📚 歷史每週統計 (永久)</h3><ul>';
             for (let w in historicalWeeklySummary) {
                 if (historicalWeeklySummary[w][user]) {
@@ -587,7 +512,7 @@
         }
 
         function exportData() {
-            let data = { users, records, historicalWeeklySummary, version: 'mobile_no_scroll_prev_sunday' };
+            let data = { users, records, historicalWeeklySummary, version: 'simple_ui' };
             let blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
             let a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -630,7 +555,7 @@
                     saveData();
                     updateUserSelect();
                     displayRecords();
-                    showToast('✅ 匯入完成 (僅合併符合五六日之記錄)');
+                    showToast('✅ 匯入完成');
                 } catch(err) { showToast('匯入失敗，格式錯誤', true); }
             };
             reader.readAsText(file);
@@ -648,7 +573,6 @@
         function init() {
             updateUserSelect();
             migrateExpiry();
-            resetDatePicker();      // 設定日期為「上個星期日或今日五六日」
             checkFridayReset();
             displayRecords();
             document.getElementById('user').addEventListener('change', displayRecords);
